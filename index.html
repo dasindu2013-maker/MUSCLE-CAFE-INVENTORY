@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#111827">
+
+  <title>Muscle Cafe Inventory</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      color: #111827;
+    }
+
+    header {
+      background: #111827;
+      color: white;
+      padding: 22px 16px;
+      text-align: center;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 24px;
+    }
+
+    header p {
+      margin: 6px 0 0;
+      color: #9ca3af;
+      font-size: 14px;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: auto;
+      padding: 18px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .stat {
+      background: white;
+      border-radius: 12px;
+      padding: 18px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    }
+
+    .stat-number {
+      font-size: 28px;
+      font-weight: bold;
+    }
+
+    .stat-label {
+      margin-top: 5px;
+      color: #6b7280;
+      font-size: 13px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 15px;
+    }
+
+    .product-group {
+      background: white;
+      border-radius: 12px;
+      margin-bottom: 15px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    }
+
+    .product-title {
+      background: #1f2937;
+      color: white;
+      padding: 13px 16px;
+      font-weight: bold;
+    }
+
+    .product-row {
+      display: grid;
+      grid-template-columns: 1fr 110px 90px;
+      align-items: center;
+      gap: 10px;
+      padding: 13px 16px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .flavour {
+      font-weight: 600;
+    }
+
+    .price {
+      color: #6b7280;
+      font-size: 13px;
+    }
+
+    .stock {
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .low {
+      color: #d97706;
+    }
+
+    .out {
+      color: #dc2626;
+    }
+
+    button {
+      border: none;
+      border-radius: 7px;
+      padding: 9px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .manage {
+      background: #16a34a;
+      color: white;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.6);
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-box {
+      width: 100%;
+      max-width: 430px;
+      background: white;
+      border-radius: 14px;
+      padding: 22px;
+    }
+
+    .modal-box h2 {
+      margin-top: 0;
+    }
+
+    .field {
+      margin-bottom: 12px;
+    }
+
+    .field label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 13px;
+      font-weight: bold;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .stockin {
+      background: #16a34a;
+      color: white;
+    }
+
+    .sale {
+      background: #dc2626;
+      color: white;
+    }
+
+    .close {
+      width: 100%;
+      margin-top: 8px;
+      background: #e5e7eb;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+    }
+
+    @media(max-width:650px) {
+      .stats {
+        grid-template-columns: repeat(3,1fr);
+      }
+
+      .stat {
+        padding: 12px 5px;
+      }
+
+      .stat-number {
+        font-size: 22px;
+      }
+
+      .product-row {
+        grid-template-columns: 1fr 65px 75px;
+        padding: 12px 10px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h1>💪 MUSCLE CAFE</h1>
+  <p>Supplement Store Inventory</p>
+</header>
+
+<div class="container">
+
+  <div class="stats">
+
+    <div class="stat">
+      <div class="stat-number" id="totalStock">0</div>
+      <div class="stat-label">Total Units</div>
+    </div>
+
+    <div class="stat">
+      <div class="stat-number" id="lowStock">0</div>
+      <div class="stat-label">Low Stock</div>
+    </div>
+
+    <div class="stat">
+      <div class="stat-number" id="outStock">0</div>
+      <div class="stat-label">Out of Stock</div>
+    </div>
+
+  </div>
+
+  <div class="controls">
+    <input
+      id="search"
+      type="text"
+      placeholder="🔍 Search product or flavour..."
+    >
+  </div>
+
+  <div id="inventory">
+    <div class="loading">Loading inventory...</div>
+  </div>
+
+</div>
+
+
+<div class="modal" id="modal">
+
+  <div class="modal-box">
+
+    <h2 id="modalProduct">Product</h2>
+
+    <p id="modalFlavour"></p>
+
+    <div class="field">
+      <label>Transaction</label>
+
+      <select id="transactionType">
+        <option value="SALE">Sale</option>
+        <option value="STOCK_IN">Stock In</option>
+        <option value="DAMAGED">Damaged</option>
+        <option value="ADJUSTMENT_IN">Adjustment In</option>
+        <option value="ADJUSTMENT_OUT">Adjustment Out</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Quantity</label>
+      <input id="quantity" type="number" min="1" value="1">
+    </div>
+
+    <div class="field">
+      <label>Staff Name</label>
+      <input id="staffName" type="text" placeholder="Enter staff name">
+    </div>
+
+    <div class="field">
+      <label>Note</label>
+      <textarea
+        id="note"
+        placeholder="Optional note"
+      ></textarea>
+    </div>
+
+    <button class="manage" style="width:100%" onclick="saveTransaction()">
+      SAVE TRANSACTION
+    </button>
+
+    <button class="close" onclick="closeModal()">
+      Cancel
+    </button>
+
+  </div>
+
+</div>
+
+
+<script>
+
+const SUPABASE_URL =
+'https://akonmasslvbrmpioiqgg.supabase.co';
+
+const SUPABASE_KEY =
+'sb_publishable_6LDpJW3LmAUglvIloQYJpw_sYC5cW7m';
+
+
+const db = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
+
+
+let products = [];
+let selectedProduct = null;
+
+
+/* ========================================
+   LOAD INVENTORY
+======================================== */
+
+async function loadProducts() {
+
+  const inventory =
+    document.getElementById('inventory');
+
+  inventory.innerHTML =
+    '<div class="loading">Loading inventory...</div>';
+
+
+  const { data, error } =
+    await db
+      .from('products')
+      .select('*')
+      .order('product_name')
+      .order('flavour');
+
+
+  if (error) {
+
+    console.error(error);
+
+    inventory.innerHTML =
+      '<div class="loading">Unable to load inventory.</div>';
+
+    return;
+  }
+
+
+  products = data || [];
+
+  renderProducts(products);
+  updateStats();
+}
+
+
+/* ========================================
+   INVENTORY DISPLAY
+======================================== */
+
+function renderProducts(list) {
+
+  const inventory =
+    document.getElementById('inventory');
+
+
+  if (!list.length) {
+
+    inventory.innerHTML =
+      '<div class="loading">No products found.</div>';
+
+    return;
+  }
+
+
+  const groups = {};
+
+
+  list.forEach(product => {
+
+    if (!groups[product.product_name]) {
+      groups[product.product_name] = [];
+    }
+
+    groups[product.product_name].push(product);
+
+  });
+
+
+  inventory.innerHTML = '';
+
+
+  Object.keys(groups).forEach(name => {
+
+    const box =
+      document.createElement('div');
+
+    box.className = 'product-group';
+
+
+    const title =
+      document.createElement('div');
+
+    title.className = 'product-title';
+    title.textContent = name;
+
+    box.appendChild(title);
+
+
+    groups[name].forEach(product => {
+
+      const row =
+        document.createElement('div');
+
+      row.className = 'product-row';
+
+
+      let stockClass = '';
+
+      if (product.current_stock === 0) {
+        stockClass = 'out';
+      }
+      else if (
+        product.current_stock <=
+        product.minimum_stock
+      ) {
+        stockClass = 'low';
+      }
+
+
+      row.innerHTML = `
+
+        <div>
+
+          <div class="flavour">
+            ${escapeHtml(product.flavour || 'Standard')}
+          </div>
+
+          <div class="price">
+            Rs. ${Number(product.selling_price || 0)
+              .toLocaleString()}
+          </div>
+
+        </div>
+
+        <div class="stock ${stockClass}">
+          ${product.current_stock}
+        </div>
+
+        <button
+          class="manage"
+          onclick="openModal(${product.id})"
+        >
+          Update
+        </button>
+
+      `;
+
+      box.appendChild(row);
+
+    });
+
+
+    inventory.appendChild(box);
+
+  });
+
+}
+
+
+/* ========================================
+   DASHBOARD
+======================================== */
+
+function updateStats() {
+
+  const total =
+    products.reduce(
+      (sum, p) =>
+        sum + Number(p.current_stock || 0),
+      0
+    );
+
+
+  const low =
+    products.filter(
+      p =>
+        p.current_stock > 0 &&
+        p.current_stock <= p.minimum_stock
+    ).length;
+
+
+  const out =
+    products.filter(
+      p => p.current_stock === 0
+    ).length;
+
+
+  document.getElementById('totalStock')
+    .textContent = total;
+
+  document.getElementById('lowStock')
+    .textContent = low;
+
+  document.getElementById('outStock')
+    .textContent = out;
+}
+
+
+/* ========================================
+   SEARCH
+======================================== */
+
+document.getElementById('search')
+.addEventListener('input', function() {
+
+  const search =
+    this.value.toLowerCase();
+
+
+  const filtered =
+    products.filter(product =>
+
+      product.product_name
+        .toLowerCase()
+        .includes(search)
+
+      ||
+
+      (product.flavour || '')
+        .toLowerCase()
+        .includes(search)
+
+      ||
+
+      (product.category || '')
+        .toLowerCase()
+        .includes(search)
+
+    );
+
+
+  renderProducts(filtered);
+
+});
+
+
+/* ========================================
+   MODAL
+======================================== */
+
+function openModal(id) {
+
+  selectedProduct =
+    products.find(p => p.id === id);
+
+
+  if (!selectedProduct) return;
+
+
+  document.getElementById('modalProduct')
+    .textContent =
+      selectedProduct.product_name;
+
+
+  document.getElementById('modalFlavour')
+    .textContent =
+      selectedProduct.flavour || 'Standard';
+
+
+  document.getElementById('quantity')
+    .value = 1;
+
+
+  document.getElementById('note')
+    .value = '';
+
+
+  document.getElementById('modal')
+    .style.display = 'flex';
+}
+
+
+function closeModal() {
+
+  document.getElementById('modal')
+    .style.display = 'none';
+
+}
+
+
+/* ========================================
+   SAVE TRANSACTION
+======================================== */
+
+async function saveTransaction() {
+
+  if (!selectedProduct) return;
+
+
+  const type =
+    document.getElementById('transactionType').value;
+
+
+  const quantity =
+    Number(
+      document.getElementById('quantity').value
+    );
+
+
+  const staff =
+    document.getElementById('staffName')
+      .value.trim();
+
+
+  const note =
+    document.getElementById('note')
+      .value.trim();
+
+
+  if (!quantity || quantity < 1) {
+
+    alert('Please enter a valid quantity.');
+
+    return;
+  }
+
+
+  const { data, error } =
+    await db.rpc(
+      'record_inventory_transaction',
+      {
+        p_product_id:
+          selectedProduct.id,
+
+        p_transaction_type:
+          type,
+
+        p_quantity:
+          quantity,
+
+        p_staff_name:
+          staff || null,
+
+        p_note:
+          note || null
+      }
+    );
+
+
+  if (error) {
+
+    console.error(error);
+
+    alert(
+      'Transaction failed: ' +
+      error.message
+    );
+
+    return;
+  }
+
+
+  alert('Stock updated successfully.');
+
+  closeModal();
+
+  await loadProducts();
+}
+
+
+/* ========================================
+   SECURITY
+======================================== */
+
+function escapeHtml(value) {
+
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+
+}
+
+
+/* ========================================
+   START APP
+======================================== */
+
+loadProducts();
+
+</script>
+
+</body>
+</html>
