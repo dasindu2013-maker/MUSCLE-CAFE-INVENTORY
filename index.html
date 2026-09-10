@@ -1,49 +1,202 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<button
-  class="logout-button"
-  onclick="logoutUser()"
->
-  Logout
-</button>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#111827">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <meta
+    name="theme-color"
+    content="#111827"
+  >
 
   <title>Muscle Cafe Inventory</title>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
+
     * {
       box-sizing: border-box;
     }
 
+    html,
     body {
       margin: 0;
+      padding: 0;
       font-family: Arial, sans-serif;
       background: #f3f4f6;
       color: #111827;
     }
 
+    button,
+    input,
+    select,
+    textarea {
+      font-family: inherit;
+    }
+
+
+    /* ===========================
+       LOGIN
+    =========================== */
+
+    #loginScreen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #111827;
+      padding: 20px;
+    }
+
+    .login-box {
+      width: 100%;
+      max-width: 390px;
+      background: white;
+      padding: 30px;
+      border-radius: 18px;
+      box-shadow:
+        0 20px 50px rgba(0, 0, 0, 0.3);
+    }
+
+    .login-logo {
+      text-align: center;
+      font-size: 42px;
+      margin-bottom: 8px;
+    }
+
+    .login-box h1 {
+      margin: 0;
+      text-align: center;
+      font-size: 25px;
+    }
+
+    .login-subtitle {
+      text-align: center;
+      color: #6b7280;
+      margin-top: 7px;
+      margin-bottom: 24px;
+    }
+
+    .login-field {
+      margin-bottom: 14px;
+    }
+
+    .login-field label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+      font-weight: bold;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 9px;
+      font-size: 15px;
+      background: white;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      outline: 2px solid #16a34a;
+      border-color: transparent;
+    }
+
+    .login-button {
+      width: 100%;
+      border: none;
+      background: #16a34a;
+      color: white;
+      padding: 13px;
+      border-radius: 9px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 15px;
+    }
+
+    .login-button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    #loginMessage {
+      text-align: center;
+      color: #dc2626;
+      font-size: 14px;
+      margin-top: 14px;
+      min-height: 18px;
+    }
+
+
+    /* ===========================
+       MAIN APP
+    =========================== */
+
+    #appContent {
+      display: none;
+      min-height: 100vh;
+    }
+
     header {
       background: #111827;
       color: white;
-      padding: 22px 16px;
-      text-align: center;
+      padding: 18px;
     }
 
-    header h1 {
+    .header-inner {
+      max-width: 1100px;
+      margin: auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .brand h1 {
       margin: 0;
-      font-size: 24px;
+      font-size: 23px;
     }
 
-    header p {
-      margin: 6px 0 0;
+    .brand p {
+      margin: 5px 0 0;
       color: #9ca3af;
-      font-size: 14px;
+      font-size: 13px;
     }
+
+    .user-area {
+      text-align: right;
+    }
+
+    #userEmail {
+      font-size: 12px;
+      color: #d1d5db;
+      margin-bottom: 6px;
+    }
+
+    .logout-button {
+      border: none;
+      background: #dc2626;
+      color: white;
+      border-radius: 7px;
+      padding: 8px 13px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+
+    /* ===========================
+       PAGE
+    =========================== */
 
     .container {
       max-width: 1100px;
@@ -53,50 +206,48 @@
 
     .stats {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns:
+        repeat(3, minmax(0, 1fr));
       gap: 12px;
       margin-bottom: 18px;
     }
 
     .stat {
       background: white;
-      border-radius: 12px;
-      padding: 18px;
+      border-radius: 13px;
+      padding: 20px 12px;
       text-align: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,.06);
+      box-shadow:
+        0 2px 8px rgba(0,0,0,.06);
     }
 
     .stat-number {
-      font-size: 28px;
+      font-size: 29px;
       font-weight: bold;
     }
 
     .stat-label {
-      margin-top: 5px;
       color: #6b7280;
       font-size: 13px;
+      margin-top: 5px;
     }
 
-    .controls {
-      display: flex;
-      gap: 10px;
+    .search-box {
       margin-bottom: 18px;
     }
 
-    input, select, textarea {
-      width: 100%;
-      padding: 12px;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
-      font-size: 15px;
-    }
+
+    /* ===========================
+       INVENTORY
+    =========================== */
 
     .product-group {
       background: white;
-      border-radius: 12px;
-      margin-bottom: 15px;
+      border-radius: 13px;
       overflow: hidden;
-      box-shadow: 0 2px 8px rgba(0,0,0,.06);
+      margin-bottom: 15px;
+      box-shadow:
+        0 2px 8px rgba(0,0,0,.06);
     }
 
     .product-title {
@@ -108,53 +259,81 @@
 
     .product-row {
       display: grid;
-      grid-template-columns: 1fr 110px 90px;
+      grid-template-columns:
+        minmax(0, 1fr) 100px 90px;
       align-items: center;
       gap: 10px;
       padding: 13px 16px;
-      border-bottom: 1px solid #eee;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .product-row:last-child {
+      border-bottom: none;
     }
 
     .flavour {
       font-weight: 600;
+      word-break: break-word;
     }
 
     .price {
       color: #6b7280;
       font-size: 13px;
+      margin-top: 3px;
     }
 
     .stock {
-      font-weight: bold;
       text-align: center;
+      font-weight: bold;
+      font-size: 17px;
     }
 
-    .low {
+    .stock-normal {
+      color: #111827;
+    }
+
+    .stock-low {
       color: #d97706;
     }
 
-    .out {
+    .stock-out {
       color: #dc2626;
     }
 
-    button {
+    .update-button {
       border: none;
+      background: #16a34a;
+      color: white;
       border-radius: 7px;
       padding: 9px;
       cursor: pointer;
       font-weight: bold;
     }
 
-    .manage {
-      background: #16a34a;
-      color: white;
+    .loading,
+    .empty,
+    .error-message {
+      background: white;
+      border-radius: 12px;
+      text-align: center;
+      padding: 40px 20px;
     }
 
-    .modal {
+    .error-message {
+      color: #dc2626;
+    }
+
+
+    /* ===========================
+       MODAL
+    =========================== */
+
+    #modal {
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,.6);
+      z-index: 100;
+      background: rgba(0, 0, 0, 0.65);
       align-items: center;
       justify-content: center;
       padding: 20px;
@@ -163,314 +342,935 @@
     .modal-box {
       width: 100%;
       max-width: 430px;
+      max-height: 90vh;
+      overflow-y: auto;
       background: white;
-      border-radius: 14px;
-      padding: 22px;
+      border-radius: 15px;
+      padding: 23px;
     }
 
     .modal-box h2 {
       margin-top: 0;
+      margin-bottom: 5px;
+    }
+
+    #modalFlavour {
+      color: #6b7280;
+      margin-top: 0;
+    }
+
+    .current-stock-display {
+      background: #f3f4f6;
+      padding: 11px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 14px;
     }
 
     .field {
-      margin-bottom: 12px;
+      margin-bottom: 13px;
     }
 
     .field label {
       display: block;
-      margin-bottom: 5px;
+      margin-bottom: 6px;
       font-size: 13px;
       font-weight: bold;
     }
 
-    .actions {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
+    textarea {
+      resize: vertical;
+      min-height: 80px;
     }
 
-    .stockin {
+    .save-button {
+      width: 100%;
+      border: none;
       background: #16a34a;
       color: white;
+      border-radius: 8px;
+      padding: 12px;
+      font-weight: bold;
+      cursor: pointer;
     }
 
-    .sale {
-      background: #dc2626;
-      color: white;
+    .save-button:disabled {
+      opacity: .6;
+      cursor: not-allowed;
     }
 
-    .close {
+    .cancel-button {
       width: 100%;
-      margin-top: 8px;
+      border: none;
       background: #e5e7eb;
+      color: #111827;
+      border-radius: 8px;
+      padding: 11px;
+      margin-top: 8px;
+      font-weight: bold;
+      cursor: pointer;
     }
 
-    .loading {
-      text-align: center;
-      padding: 40px;
-    }
 
-    @media(max-width:650px) {
+    /* ===========================
+       MOBILE
+    =========================== */
+
+    @media (max-width: 650px) {
+
+      .header-inner {
+        align-items: flex-start;
+      }
+
+      .brand h1 {
+        font-size: 20px;
+      }
+
+      #userEmail {
+        max-width: 145px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
       .stats {
-        grid-template-columns: repeat(3,1fr);
+        gap: 7px;
       }
 
       .stat {
-        padding: 12px 5px;
+        padding:
+          14px 4px;
       }
 
       .stat-number {
-        font-size: 22px;
+        font-size: 23px;
+      }
+
+      .stat-label {
+        font-size: 11px;
       }
 
       .product-row {
-        grid-template-columns: 1fr 65px 75px;
-        padding: 12px 10px;
+        grid-template-columns:
+          minmax(0, 1fr) 48px 72px;
+
+        padding:
+          12px 10px;
+      }
+
+      .stock {
+        font-size: 15px;
+      }
+
+      .update-button {
+        padding:
+          8px 5px;
+
+        font-size:
+          12px;
       }
     }
-.login-screen {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  background: #111827;
-}
 
-.login-box {
-  width: 100%;
-  max-width: 380px;
-  background: white;
-  padding: 28px;
-  border-radius: 16px;
-}
-
-.login-box h2 {
-  margin-top: 0;
-  text-align: center;
-}
-
-.login-box input {
-  margin-bottom: 12px;
-}
-
-.login-button {
-  width: 100%;
-  background: #16a34a;
-  color: white;
-  padding: 12px;
-}
-
-.logout-button {
-  background: #dc2626;
-  color: white;
-  padding: 8px 12px;
-  margin-top: 12px;
-}
   </style>
+
 </head>
 
+
 <body>
-<div id="loginScreen" class="login-screen">
+
+
+<!-- ======================================
+     LOGIN SCREEN
+======================================= -->
+
+<div id="loginScreen">
 
   <div class="login-box">
 
-    <h2>💪 Muscle Cafe</h2>
-    <p style="text-align:center;">Staff Login</p>
+    <div class="login-logo">
+      💪
+    </div>
 
-    <input
-      id="loginEmail"
-      type="email"
-      placeholder="Email"
-    >
+    <h1>
+      MUSCLE CAFE
+    </h1>
 
-    <input
-      id="loginPassword"
-      type="password"
-      placeholder="Password"
-    >
+    <div class="login-subtitle">
+      Supplement Store Inventory
+      <br>
+      Staff Login
+    </div>
+
+
+    <div class="login-field">
+
+      <label>
+        Email Address
+      </label>
+
+      <input
+        id="loginEmail"
+        type="email"
+        autocomplete="username"
+        placeholder="Enter email address"
+      >
+
+    </div>
+
+
+    <div class="login-field">
+
+      <label>
+        Password
+      </label>
+
+      <input
+        id="loginPassword"
+        type="password"
+        autocomplete="current-password"
+        placeholder="Enter password"
+      >
+
+    </div>
+
 
     <button
+      id="loginButton"
       class="login-button"
-      onclick="loginUser()"
+      type="button"
     >
       LOGIN
     </button>
 
-    <p
-      id="loginMessage"
-      style="text-align:center;color:#dc2626;"
-    ></p>
+
+    <div id="loginMessage"></div>
 
   </div>
 
 </div>
 
-<div id="appContent" style="display:none;">
-<header>
-  <h1>💪 MUSCLE CAFE</h1>
-  <p>Supplement Store Inventory</p>
-</header>
 
-<div class="container">
 
-  <div class="stats">
+<!-- ======================================
+     MAIN INVENTORY APP
+======================================= -->
 
-    <div class="stat">
-      <div class="stat-number" id="totalStock">0</div>
-      <div class="stat-label">Total Units</div>
+<div id="appContent">
+
+  <header>
+
+    <div class="header-inner">
+
+      <div class="brand">
+
+        <h1>
+          💪 MUSCLE CAFE
+        </h1>
+
+        <p>
+          Supplement Store Inventory
+        </p>
+
+      </div>
+
+
+      <div class="user-area">
+
+        <div id="userEmail"></div>
+
+        <button
+          id="logoutButton"
+          class="logout-button"
+          type="button"
+        >
+          Logout
+        </button>
+
+      </div>
+
     </div>
 
-    <div class="stat">
-      <div class="stat-number" id="lowStock">0</div>
-      <div class="stat-label">Low Stock</div>
+  </header>
+
+
+  <main class="container">
+
+
+    <!-- DASHBOARD -->
+
+    <section class="stats">
+
+      <div class="stat">
+
+        <div
+          id="totalStock"
+          class="stat-number"
+        >
+          0
+        </div>
+
+        <div class="stat-label">
+          Total Units
+        </div>
+
+      </div>
+
+
+      <div class="stat">
+
+        <div
+          id="lowStock"
+          class="stat-number"
+        >
+          0
+        </div>
+
+        <div class="stat-label">
+          Low Stock
+        </div>
+
+      </div>
+
+
+      <div class="stat">
+
+        <div
+          id="outStock"
+          class="stat-number"
+        >
+          0
+        </div>
+
+        <div class="stat-label">
+          Out of Stock
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- SEARCH -->
+
+    <div class="search-box">
+
+      <input
+        id="search"
+        type="search"
+        placeholder="🔍 Search product, category or flavour..."
+      >
+
     </div>
 
-    <div class="stat">
-      <div class="stat-number" id="outStock">0</div>
-      <div class="stat-label">Out of Stock</div>
+
+    <!-- INVENTORY -->
+
+    <div id="inventory">
+
+      <div class="loading">
+        Loading inventory...
+      </div>
+
     </div>
 
-  </div>
+  </main>
 
-  <div class="controls">
-    <input
-      id="search"
-      type="text"
-      placeholder="🔍 Search product or flavour..."
-    >
-  </div>
 
-  <div id="inventory">
-    <div class="loading">Loading inventory...</div>
+
+  <!-- ==================================
+       UPDATE MODAL
+  =================================== -->
+
+  <div id="modal">
+
+    <div class="modal-box">
+
+      <h2 id="modalProduct">
+        Product
+      </h2>
+
+      <p id="modalFlavour"></p>
+
+
+      <div class="current-stock-display">
+
+        Current Stock:
+
+        <strong id="modalCurrentStock">
+          0
+        </strong>
+
+      </div>
+
+
+      <div class="field">
+
+        <label>
+          Transaction Type
+        </label>
+
+        <select id="transactionType">
+
+          <option value="SALE">
+            Sale
+          </option>
+
+          <option value="STOCK_IN">
+            Stock In
+          </option>
+
+          <option value="DAMAGED">
+            Damaged
+          </option>
+
+          <option value="ADJUSTMENT_IN">
+            Adjustment In
+          </option>
+
+          <option value="ADJUSTMENT_OUT">
+            Adjustment Out
+          </option>
+
+        </select>
+
+      </div>
+
+
+      <div class="field">
+
+        <label>
+          Quantity
+        </label>
+
+        <input
+          id="quantity"
+          type="number"
+          min="1"
+          step="1"
+          value="1"
+        >
+
+      </div>
+
+
+      <div class="field">
+
+        <label>
+          Staff Name
+        </label>
+
+        <input
+          id="staffName"
+          type="text"
+          placeholder="Optional"
+        >
+
+      </div>
+
+
+      <div class="field">
+
+        <label>
+          Note
+        </label>
+
+        <textarea
+          id="note"
+          placeholder="Optional note"
+        ></textarea>
+
+      </div>
+
+
+      <button
+        id="saveButton"
+        class="save-button"
+        type="button"
+      >
+        SAVE TRANSACTION
+      </button>
+
+
+      <button
+        id="cancelButton"
+        class="cancel-button"
+        type="button"
+      >
+        Cancel
+      </button>
+
+    </div>
+
   </div>
 
 </div>
 
-
-<div class="modal" id="modal">
-
-  <div class="modal-box">
-
-    <h2 id="modalProduct">Product</h2>
-
-    <p id="modalFlavour"></p>
-
-    <div class="field">
-      <label>Transaction</label>
-
-      <select id="transactionType">
-        <option value="SALE">Sale</option>
-        <option value="STOCK_IN">Stock In</option>
-        <option value="DAMAGED">Damaged</option>
-        <option value="ADJUSTMENT_IN">Adjustment In</option>
-        <option value="ADJUSTMENT_OUT">Adjustment Out</option>
-      </select>
-    </div>
-
-    <div class="field">
-      <label>Quantity</label>
-      <input id="quantity" type="number" min="1" value="1">
-    </div>
-
-    <div class="field">
-      <label>Staff Name</label>
-      <input id="staffName" type="text" placeholder="Enter staff name">
-    </div>
-
-    <div class="field">
-      <label>Note</label>
-      <textarea
-        id="note"
-        placeholder="Optional note"
-      ></textarea>
-    </div>
-
-    <button class="manage" style="width:100%" onclick="saveTransaction()">
-      SAVE TRANSACTION
-    </button>
-
-    <button class="close" onclick="closeModal()">
-      Cancel
-    </button>
-
-  </div>
-
-</div>
 
 
 <script>
 
+
+/* ==================================================
+   SUPABASE SETTINGS
+================================================== */
+
 const SUPABASE_URL =
-'https://akonmasslvbrmpioiqgg.supabase.co';
+  'https://akonmasslvbrmpioiqgg.supabase.co';
 
 const SUPABASE_KEY =
-'sb_publishable_6LDpJW3LmAUglvIloQYJpw_sYC5cW7m';
+  'sb_publishable_6LDpJW3LmAUglvIloQYJpw_sYC5cW7m';
 
 
-const db = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
+const db =
+  window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+  );
 
+
+
+/* ==================================================
+   STATE
+================================================== */
 
 let products = [];
+
 let selectedProduct = null;
 
-
-/* ========================================
-   LOAD INVENTORY
-======================================== */
-
-async function loadProducts() {
-
-  const inventory =
-    document.getElementById('inventory');
-
-  inventory.innerHTML =
-    '<div class="loading">Loading inventory...</div>';
+let currentUser = null;
 
 
-  const { data, error } =
-    await db
-      .from('products')
-      .select('*')
-      .order('product_name')
-      .order('flavour');
+
+/* ==================================================
+   DOM ELEMENTS
+================================================== */
+
+const loginScreen =
+  document.getElementById(
+    'loginScreen'
+  );
+
+const appContent =
+  document.getElementById(
+    'appContent'
+  );
+
+const loginEmail =
+  document.getElementById(
+    'loginEmail'
+  );
+
+const loginPassword =
+  document.getElementById(
+    'loginPassword'
+  );
+
+const loginButton =
+  document.getElementById(
+    'loginButton'
+  );
+
+const loginMessage =
+  document.getElementById(
+    'loginMessage'
+  );
+
+const logoutButton =
+  document.getElementById(
+    'logoutButton'
+  );
+
+const userEmail =
+  document.getElementById(
+    'userEmail'
+  );
+
+const inventory =
+  document.getElementById(
+    'inventory'
+  );
+
+const searchInput =
+  document.getElementById(
+    'search'
+  );
+
+const modal =
+  document.getElementById(
+    'modal'
+  );
+
+const saveButton =
+  document.getElementById(
+    'saveButton'
+  );
+
+const cancelButton =
+  document.getElementById(
+    'cancelButton'
+  );
 
 
-  if (error) {
 
-    console.error(error);
+/* ==================================================
+   LOGIN
+================================================== */
 
-    inventory.innerHTML =
-      '<div class="loading">Unable to load inventory.</div>';
+async function loginUser() {
+
+  const email =
+    loginEmail.value.trim();
+
+  const password =
+    loginPassword.value;
+
+
+  loginMessage.textContent = '';
+
+
+  if (!email || !password) {
+
+    loginMessage.textContent =
+      'Please enter your email and password.';
 
     return;
   }
 
 
-  products = data || [];
+  loginButton.disabled = true;
 
-  renderProducts(products);
-  updateStats();
+  loginButton.textContent =
+    'LOGGING IN...';
+
+
+  try {
+
+    const {
+      data,
+      error
+    } =
+      await db.auth
+        .signInWithPassword({
+          email: email,
+          password: password
+        });
+
+
+    if (error) {
+
+      loginMessage.textContent =
+        error.message;
+
+      return;
+    }
+
+
+    if (!data.session) {
+
+      loginMessage.textContent =
+        'Login failed. Please try again.';
+
+      return;
+    }
+
+
+    currentUser =
+      data.user;
+
+
+    await showApp();
+
+
+  }
+  catch (error) {
+
+    console.error(
+      'Login error:',
+      error
+    );
+
+    loginMessage.textContent =
+      'Unable to login. Please try again.';
+
+  }
+  finally {
+
+    loginButton.disabled =
+      false;
+
+    loginButton.textContent =
+      'LOGIN';
+
+  }
+
 }
 
 
-/* ========================================
-   INVENTORY DISPLAY
-======================================== */
+
+/* ==================================================
+   CHECK EXISTING LOGIN
+================================================== */
+
+async function initializeApp() {
+
+  try {
+
+    const {
+      data,
+      error
+    } =
+      await db.auth.getSession();
+
+
+    if (error) {
+
+      console.error(
+        'Session error:',
+        error
+      );
+
+      showLogin();
+
+      return;
+    }
+
+
+    if (
+      data &&
+      data.session &&
+      data.session.user
+    ) {
+
+      currentUser =
+        data.session.user;
+
+      await showApp();
+
+    }
+    else {
+
+      showLogin();
+
+    }
+
+  }
+  catch (error) {
+
+    console.error(
+      'Initialize error:',
+      error
+    );
+
+    showLogin();
+
+  }
+
+}
+
+
+
+/* ==================================================
+   SHOW LOGIN
+================================================== */
+
+function showLogin() {
+
+  appContent.style.display =
+    'none';
+
+  loginScreen.style.display =
+    'flex';
+
+  currentUser = null;
+
+}
+
+
+
+/* ==================================================
+   SHOW APP
+================================================== */
+
+async function showApp() {
+
+  loginScreen.style.display =
+    'none';
+
+  appContent.style.display =
+    'block';
+
+
+  if (currentUser) {
+
+    userEmail.textContent =
+      currentUser.email || '';
+
+  }
+
+
+  await loadProducts();
+
+}
+
+
+
+/* ==================================================
+   LOGOUT
+================================================== */
+
+async function logoutUser() {
+
+  logoutButton.disabled =
+    true;
+
+  logoutButton.textContent =
+    'Logging out...';
+
+
+  try {
+
+    await db.auth.signOut();
+
+  }
+  catch (error) {
+
+    console.error(
+      'Logout error:',
+      error
+    );
+
+  }
+
+
+  products = [];
+
+  selectedProduct = null;
+
+  searchInput.value = '';
+
+  inventory.innerHTML =
+    '<div class="loading">Loading inventory...</div>';
+
+
+  loginPassword.value = '';
+
+  logoutButton.disabled =
+    false;
+
+  logoutButton.textContent =
+    'Logout';
+
+
+  showLogin();
+
+}
+
+
+
+/* ==================================================
+   LOAD PRODUCTS
+================================================== */
+
+async function loadProducts() {
+
+  inventory.innerHTML =
+    '<div class="loading">Loading inventory...</div>';
+
+
+  try {
+
+    const {
+      data,
+      error
+    } =
+      await db
+        .from('products')
+        .select(`
+          id,
+          product_name,
+          category,
+          flavour,
+          selling_price,
+          current_stock,
+          minimum_stock,
+          created_at
+        `)
+        .order(
+          'product_name',
+          {
+            ascending: true
+          }
+        )
+        .order(
+          'flavour',
+          {
+            ascending: true
+          }
+        );
+
+
+    if (error) {
+
+      console.error(
+        'Product error:',
+        error
+      );
+
+      inventory.innerHTML =
+        '<div class="error-message">' +
+        'Unable to load inventory.<br>' +
+        escapeHtml(error.message) +
+        '</div>';
+
+      return;
+    }
+
+
+    products =
+      data || [];
+
+
+    renderProducts(
+      products
+    );
+
+
+    updateStats();
+
+  }
+  catch (error) {
+
+    console.error(
+      'Load error:',
+      error
+    );
+
+    inventory.innerHTML =
+      '<div class="error-message">' +
+      'Unable to load inventory.' +
+      '</div>';
+
+  }
+
+}
+
+
+
+/* ==================================================
+   RENDER PRODUCTS
+================================================== */
 
 function renderProducts(list) {
 
-  const inventory =
-    document.getElementById('inventory');
+  inventory.innerHTML = '';
 
 
   if (!list.length) {
 
     inventory.innerHTML =
-      '<div class="loading">No products found.</div>';
+      '<div class="empty">' +
+      'No products found.' +
+      '</div>';
 
     return;
   }
@@ -479,383 +1279,741 @@ function renderProducts(list) {
   const groups = {};
 
 
-  list.forEach(product => {
+  list.forEach(
+    function(product) {
 
-    if (!groups[product.product_name]) {
-      groups[product.product_name] = [];
+      const groupName =
+        product.product_name ||
+        'Other';
+
+
+      if (!groups[groupName]) {
+
+        groups[groupName] = [];
+
+      }
+
+
+      groups[groupName].push(
+        product
+      );
+
     }
-
-    groups[product.product_name].push(product);
-
-  });
+  );
 
 
-  inventory.innerHTML = '';
+  Object.keys(groups)
+    .sort()
+    .forEach(
+      function(groupName) {
+
+        const group =
+          document.createElement(
+            'section'
+          );
+
+        group.className =
+          'product-group';
 
 
-  Object.keys(groups).forEach(name => {
+        const title =
+          document.createElement(
+            'div'
+          );
 
-    const box =
-      document.createElement('div');
+        title.className =
+          'product-title';
 
-    box.className = 'product-group';
-
-
-    const title =
-      document.createElement('div');
-
-    title.className = 'product-title';
-    title.textContent = name;
-
-    box.appendChild(title);
+        title.textContent =
+          groupName;
 
 
-    groups[name].forEach(product => {
-
-      const row =
-        document.createElement('div');
-
-      row.className = 'product-row';
+        group.appendChild(
+          title
+        );
 
 
-      let stockClass = '';
+        groups[groupName]
+          .forEach(
+            function(product) {
 
-      if (product.current_stock === 0) {
-        stockClass = 'out';
+              const row =
+                document.createElement(
+                  'div'
+                );
+
+
+              row.className =
+                'product-row';
+
+
+              let stockClass =
+                'stock-normal';
+
+
+              const currentStock =
+                Number(
+                  product.current_stock || 0
+                );
+
+
+              const minimumStock =
+                Number(
+                  product.minimum_stock || 0
+                );
+
+
+              if (
+                currentStock <= 0
+              ) {
+
+                stockClass =
+                  'stock-out';
+
+              }
+              else if (
+                currentStock <=
+                minimumStock
+              ) {
+
+                stockClass =
+                  'stock-low';
+
+              }
+
+
+              const info =
+                document.createElement(
+                  'div'
+                );
+
+
+              const flavour =
+                document.createElement(
+                  'div'
+                );
+
+              flavour.className =
+                'flavour';
+
+              flavour.textContent =
+                product.flavour ||
+                'Standard';
+
+
+              const price =
+                document.createElement(
+                  'div'
+                );
+
+              price.className =
+                'price';
+
+              price.textContent =
+                'Rs. ' +
+                Number(
+                  product.selling_price || 0
+                )
+                  .toLocaleString(
+                    'en-US',
+                    {
+                      maximumFractionDigits: 0
+                    }
+                  );
+
+
+              info.appendChild(
+                flavour
+              );
+
+              info.appendChild(
+                price
+              );
+
+
+              const stock =
+                document.createElement(
+                  'div'
+                );
+
+              stock.className =
+                'stock ' +
+                stockClass;
+
+              stock.textContent =
+                currentStock;
+
+
+              const button =
+                document.createElement(
+                  'button'
+                );
+
+              button.type =
+                'button';
+
+              button.className =
+                'update-button';
+
+              button.textContent =
+                'Update';
+
+
+              button.addEventListener(
+                'click',
+                function() {
+
+                  openModal(
+                    product.id
+                  );
+
+                }
+              );
+
+
+              row.appendChild(
+                info
+              );
+
+              row.appendChild(
+                stock
+              );
+
+              row.appendChild(
+                button
+              );
+
+
+              group.appendChild(
+                row
+              );
+
+            }
+          );
+
+
+        inventory.appendChild(
+          group
+        );
+
       }
-      else if (
-        product.current_stock <=
-        product.minimum_stock
-      ) {
-        stockClass = 'low';
-      }
-
-
-      row.innerHTML = `
-
-        <div>
-
-          <div class="flavour">
-            ${escapeHtml(product.flavour || 'Standard')}
-          </div>
-
-          <div class="price">
-            Rs. ${Number(product.selling_price || 0)
-              .toLocaleString()}
-          </div>
-
-        </div>
-
-        <div class="stock ${stockClass}">
-          ${product.current_stock}
-        </div>
-
-        <button
-          class="manage"
-          onclick="openModal(${product.id})"
-        >
-          Update
-        </button>
-
-      `;
-
-      box.appendChild(row);
-
-    });
-
-
-    inventory.appendChild(box);
-
-  });
+    );
 
 }
 
 
-/* ========================================
+
+/* ==================================================
    DASHBOARD
-======================================== */
+================================================== */
 
 function updateStats() {
 
   const total =
     products.reduce(
-      (sum, p) =>
-        sum + Number(p.current_stock || 0),
+      function(sum, product) {
+
+        return (
+          sum +
+          Number(
+            product.current_stock || 0
+          )
+        );
+
+      },
       0
     );
 
 
   const low =
     products.filter(
-      p =>
-        p.current_stock > 0 &&
-        p.current_stock <= p.minimum_stock
+      function(product) {
+
+        const stock =
+          Number(
+            product.current_stock || 0
+          );
+
+        const minimum =
+          Number(
+            product.minimum_stock || 0
+          );
+
+        return (
+          stock > 0 &&
+          stock <= minimum
+        );
+
+      }
     ).length;
 
 
   const out =
     products.filter(
-      p => p.current_stock === 0
+      function(product) {
+
+        return (
+          Number(
+            product.current_stock || 0
+          ) <= 0
+        );
+
+      }
     ).length;
 
 
-  document.getElementById('totalStock')
-    .textContent = total;
+  document.getElementById(
+    'totalStock'
+  ).textContent = total;
 
-  document.getElementById('lowStock')
-    .textContent = low;
 
-  document.getElementById('outStock')
-    .textContent = out;
+  document.getElementById(
+    'lowStock'
+  ).textContent = low;
+
+
+  document.getElementById(
+    'outStock'
+  ).textContent = out;
+
 }
 
 
-/* ========================================
+
+/* ==================================================
    SEARCH
-======================================== */
+================================================== */
 
-document.getElementById('search')
-.addEventListener('input', function() {
+function filterProducts() {
 
-  const search =
-    this.value.toLowerCase();
+  const value =
+    searchInput.value
+      .trim()
+      .toLowerCase();
 
 
-  const filtered =
-    products.filter(product =>
+  if (!value) {
 
-      product.product_name
-        .toLowerCase()
-        .includes(search)
-
-      ||
-
-      (product.flavour || '')
-        .toLowerCase()
-        .includes(search)
-
-      ||
-
-      (product.category || '')
-        .toLowerCase()
-        .includes(search)
-
+    renderProducts(
+      products
     );
-
-
-  renderProducts(filtered);
-
-});
-
-
-/* ========================================
-   MODAL
-======================================== */
-
-function openModal(id) {
-
-  selectedProduct =
-    products.find(p => p.id === id);
-
-
-  if (!selectedProduct) return;
-
-
-  document.getElementById('modalProduct')
-    .textContent =
-      selectedProduct.product_name;
-
-
-  document.getElementById('modalFlavour')
-    .textContent =
-      selectedProduct.flavour || 'Standard';
-
-
-  document.getElementById('quantity')
-    .value = 1;
-
-
-  document.getElementById('note')
-    .value = '';
-
-
-  document.getElementById('modal')
-    .style.display = 'flex';
-}
-
-
-function closeModal() {
-
-  document.getElementById('modal')
-    .style.display = 'none';
-
-}
-
-
-/* ========================================
-   SAVE TRANSACTION
-======================================== */
-
-async function saveTransaction() {
-
-  if (!selectedProduct) return;
-
-
-  const type =
-    document.getElementById('transactionType').value;
-
-
-  const quantity =
-    Number(
-      document.getElementById('quantity').value
-    );
-
-
-  const staff =
-    document.getElementById('staffName')
-      .value.trim();
-
-
-  const note =
-    document.getElementById('note')
-      .value.trim();
-
-
-  if (!quantity || quantity < 1) {
-
-    alert('Please enter a valid quantity.');
 
     return;
+
   }
 
 
-  const { data, error } =
-    await db.rpc(
-      'record_inventory_transaction',
-      {
-        p_product_id:
-          selectedProduct.id,
+  const filtered =
+    products.filter(
+      function(product) {
 
-        p_transaction_type:
-          type,
+        const name =
+          String(
+            product.product_name || ''
+          )
+            .toLowerCase();
 
-        p_quantity:
-          quantity,
 
-        p_staff_name:
-          staff || null,
+        const category =
+          String(
+            product.category || ''
+          )
+            .toLowerCase();
 
-        p_note:
-          note || null
+
+        const flavour =
+          String(
+            product.flavour || ''
+          )
+            .toLowerCase();
+
+
+        return (
+          name.includes(value) ||
+          category.includes(value) ||
+          flavour.includes(value)
+        );
+
       }
     );
 
 
-  if (error) {
+  renderProducts(
+    filtered
+  );
 
-    console.error(error);
+}
+
+
+
+/* ==================================================
+   OPEN MODAL
+================================================== */
+
+function openModal(productId) {
+
+  selectedProduct =
+    products.find(
+      function(product) {
+
+        return (
+          Number(product.id) ===
+          Number(productId)
+        );
+
+      }
+    );
+
+
+  if (!selectedProduct) {
+
+    return;
+
+  }
+
+
+  document.getElementById(
+    'modalProduct'
+  ).textContent =
+    selectedProduct.product_name;
+
+
+  document.getElementById(
+    'modalFlavour'
+  ).textContent =
+    selectedProduct.flavour ||
+    'Standard';
+
+
+  document.getElementById(
+    'modalCurrentStock'
+  ).textContent =
+    selectedProduct.current_stock;
+
+
+  document.getElementById(
+    'transactionType'
+  ).value =
+    'SALE';
+
+
+  document.getElementById(
+    'quantity'
+  ).value =
+    1;
+
+
+  document.getElementById(
+    'note'
+  ).value =
+    '';
+
+
+  modal.style.display =
+    'flex';
+
+}
+
+
+
+/* ==================================================
+   CLOSE MODAL
+================================================== */
+
+function closeModal() {
+
+  modal.style.display =
+    'none';
+
+  selectedProduct =
+    null;
+
+}
+
+
+
+/* ==================================================
+   SAVE TRANSACTION
+================================================== */
+
+async function saveTransaction() {
+
+  if (!selectedProduct) {
+
+    return;
+
+  }
+
+
+  const type =
+    document.getElementById(
+      'transactionType'
+    ).value;
+
+
+  const quantity =
+    Number(
+      document.getElementById(
+        'quantity'
+      ).value
+    );
+
+
+  const staff =
+    document.getElementById(
+      'staffName'
+    ).value.trim();
+
+
+  const note =
+    document.getElementById(
+      'note'
+    ).value.trim();
+
+
+  if (
+    !Number.isInteger(quantity) ||
+    quantity <= 0
+  ) {
 
     alert(
-      'Transaction failed: ' +
-      error.message
+      'Please enter a valid quantity.'
     );
 
     return;
+
   }
 
 
-  alert('Stock updated successfully.');
+  const stockOutTypes = [
+    'SALE',
+    'DAMAGED',
+    'ADJUSTMENT_OUT'
+  ];
 
-  closeModal();
 
-  await loadProducts();
+  if (
+    stockOutTypes.includes(type) &&
+    quantity >
+      Number(
+        selectedProduct.current_stock
+      )
+  ) {
+
+    alert(
+      'Not enough stock available.'
+    );
+
+    return;
+
+  }
+
+
+  saveButton.disabled =
+    true;
+
+  saveButton.textContent =
+    'SAVING...';
+
+
+  try {
+
+    const {
+      data,
+      error
+    } =
+      await db.rpc(
+        'record_inventory_transaction',
+        {
+          p_product_id:
+            selectedProduct.id,
+
+          p_transaction_type:
+            type,
+
+          p_quantity:
+            quantity,
+
+          p_staff_name:
+            staff ||
+            (
+              currentUser
+                ? currentUser.email
+                : null
+            ),
+
+          p_note:
+            note || null
+        }
+      );
+
+
+    if (error) {
+
+      console.error(
+        'Transaction error:',
+        error
+      );
+
+      alert(
+        'Transaction failed:\n' +
+        error.message
+      );
+
+      return;
+
+    }
+
+
+    closeModal();
+
+
+    await loadProducts();
+
+
+    alert(
+      'Stock updated successfully.'
+    );
+
+  }
+  catch (error) {
+
+    console.error(
+      'Unexpected transaction error:',
+      error
+    );
+
+
+    alert(
+      'Unable to update stock.'
+    );
+
+  }
+  finally {
+
+    saveButton.disabled =
+      false;
+
+    saveButton.textContent =
+      'SAVE TRANSACTION';
+
+  }
+
 }
 
 
-/* ========================================
-   SECURITY
-======================================== */
+
+/* ==================================================
+   ESCAPE HTML
+================================================== */
 
 function escapeHtml(value) {
 
-  return String(value)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
+  return String(
+    value ?? ''
+  )
+    .replaceAll(
+      '&',
+      '&amp;'
+    )
+    .replaceAll(
+      '<',
+      '&lt;'
+    )
+    .replaceAll(
+      '>',
+      '&gt;'
+    )
+    .replaceAll(
+      '"',
+      '&quot;'
+    )
+    .replaceAll(
+      "'",
+      '&#039;'
+    );
 
 }
 
 
-/* ========================================
+
+/* ==================================================
+   EVENT LISTENERS
+================================================== */
+
+loginButton.addEventListener(
+  'click',
+  loginUser
+);
+
+
+loginPassword.addEventListener(
+  'keydown',
+  function(event) {
+
+    if (
+      event.key === 'Enter'
+    ) {
+
+      loginUser();
+
+    }
+
+  }
+);
+
+
+logoutButton.addEventListener(
+  'click',
+  logoutUser
+);
+
+
+searchInput.addEventListener(
+  'input',
+  filterProducts
+);
+
+
+saveButton.addEventListener(
+  'click',
+  saveTransaction
+);
+
+
+cancelButton.addEventListener(
+  'click',
+  closeModal
+);
+
+
+modal.addEventListener(
+  'click',
+  function(event) {
+
+    if (
+      event.target === modal
+    ) {
+
+      closeModal();
+
+    }
+
+  }
+);
+
+
+
+/* ==================================================
    START APP
-======================================== */
+================================================== */
 
-loadProducts();
-async function loginUser() {
-
-  const email =
-    document.getElementById('loginEmail').value.trim();
-
-  const password =
-    document.getElementById('loginPassword').value;
-
-  const message =
-    document.getElementById('loginMessage');
-
-  message.textContent = '';
-
-  const { data, error } =
-    await db.auth.signInWithPassword({
-      email,
-      password
-    });
-
-  if (error) {
-    message.textContent = 'Invalid email or password.';
-    return;
-  }
-
-  showApp();
-}
+initializeApp();
 
 
-async function logoutUser() {
-
-  await db.auth.signOut();
-
-  document.getElementById('appContent')
-    .style.display = 'none';
-
-  document.getElementById('loginScreen')
-    .style.display = 'flex';
-}
-
-
-function showApp() {
-
-  document.getElementById('loginScreen')
-    .style.display = 'none';
-
-  document.getElementById('appContent')
-    .style.display = 'block';
-
- checkLogin();
-}
-
-
-async function checkLogin() {
-
-  const {
-    data: { session }
-  } = await db.auth.getSession();
-
-  if (session) {
-    showApp();
-  }
-}
 </script>
-</div>
+
+
 </body>
+
 </html>
