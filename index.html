@@ -3170,22 +3170,24 @@ async function exportSalesPdf() {
       img.onerror = reject;
       img.src = 'logo.png?v=pdf-logo-2';
     });
-    doc.addImage(logoData, 'PNG', 14, 8, 24, 24);
+    doc.addImage(logoData, 'PNG', 14, 8, 20, 20);
   } catch (e) {
     console.warn('PDF logo could not be added:', e);
   }
 
   doc.setFont('helvetica','bold');
   doc.setFontSize(18);
-  doc.text('MUSCLE CAFE', 43, y);
+  doc.text('MUSCLE CAFE', 39, y);
   y += 7;
   doc.setFontSize(12);
-  doc.text('Sales Results - ' + salesRangeLabel(salesRange), 14, y);
+  doc.text('Sales Results - ' + salesRangeLabel(salesRange), 39, y);
   y += 6;
   doc.setFont('helvetica','normal');
   doc.setFontSize(9);
-  doc.text('Generated: ' + new Date().toLocaleString(), 14, y);
-  y += 10;
+  doc.text('Generated: ' + new Date().toLocaleString(), 39, y);
+
+  // Start the report body below the logo/header so nothing overlaps.
+  y = 38;
 
   const totalValue = rows.reduce((s,r) => s + Number(r.total || (Number(r.unit_price||0) * Number(r.quantity||0))), 0);
   const totalUnits = rows.reduce((s,r) => s + Number(r.quantity||0), 0);
