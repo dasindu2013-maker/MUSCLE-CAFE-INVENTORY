@@ -17,6 +17,7 @@
   <title>Muscle Cafe Inventory</title>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
   <style>
 
@@ -238,7 +239,8 @@
       margin-bottom: 12px;
     }
 
-    .add-product-button {
+    .add-product-button,
+    .scan-barcode-button {
       border: none;
       background: #16a34a;
       color: white;
@@ -247,6 +249,39 @@
       cursor: pointer;
       font-weight: bold;
       font-size: 14px;
+    }
+
+    .scan-barcode-button {
+      background: #2563eb;
+      color: white;
+    }
+
+    #scannerModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 120;
+      background: rgba(0,0,0,.72);
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    #barcodeReader {
+      width: 100%;
+      margin: 14px 0;
+    }
+
+    .scanner-status {
+      font-size: 14px;
+      color: #6b7280;
+      margin: 8px 0 14px;
+    }
+
+    .barcode-label {
+      color: #6b7280;
+      font-size: 12px;
+      margin-top: 4px;
     }
 
     .search-box {
@@ -674,6 +709,9 @@
       <button id="addProductButton" class="add-product-button" type="button">
         + ADD PRODUCT
       </button>
+      <button id="scanBarcodeButton" class="scan-barcode-button" type="button">
+        📷 SCAN BARCODE
+      </button>
     </div>
 
     <!-- SEARCH -->
@@ -712,6 +750,12 @@
       <h2>Add New Product</h2>
 
       <div class="field">
+        <label>Barcode</label>
+        <input id="newBarcode" type="text" inputmode="numeric" placeholder="Scan or enter barcode">
+        <button id="scanForNewProductButton" class="cancel-button" type="button">📷 Scan Barcode</button>
+      </div>
+
+      <div class="field">
         <label>Product Name</label>
         <input id="newProductName" type="text" placeholder="e.g. Kevin Levrone">
       </div>
@@ -743,6 +787,18 @@
 
       <button id="saveProductButton" class="save-button" type="button">ADD PRODUCT</button>
       <button id="cancelProductButton" class="cancel-button" type="button">Cancel</button>
+    </div>
+  </div>
+
+  <!-- ==================================
+       BARCODE SCANNER MODAL
+  =================================== -->
+  <div id="scannerModal">
+    <div class="modal-box">
+      <h2>Scan Product Barcode</h2>
+      <div class="scanner-status" id="scannerStatus">Point your phone camera at the product barcode.</div>
+      <div id="barcodeReader"></div>
+      <button id="closeScannerButton" class="cancel-button" type="button">Cancel</button>
     </div>
   </div>
 
@@ -990,6 +1046,21 @@ const saveProductButton =
 
 const cancelProductButton =
   document.getElementById('cancelProductButton');
+
+const scanBarcodeButton =
+  document.getElementById('scanBarcodeButton');
+
+const scanForNewProductButton =
+  document.getElementById('scanForNewProductButton');
+
+const scannerModal =
+  document.getElementById('scannerModal');
+
+const closeScannerButton =
+  document.getElementById('closeScannerButton');
+
+let html5QrCode = null;
+let scannerTarget = 'lookup';
 
 
 
@@ -1274,6 +1345,7 @@ async function loadProducts() {
           selling_price,
           current_stock,
           minimum_stock,
+          barcode,
           created_at
         `)
         .order(
@@ -1511,6 +1583,13 @@ function renderProducts(list) {
                 price
               );
 
+              if (product.barcode) {
+                const barcodeText = document.createElement('div');
+                barcodeText.className = 'barcode-label';
+                barcodeText.textContent = 'Barcode: ' + product.barcode;
+                info.appendChild(barcodeText);
+              }
+
 
               const stock =
                 document.createElement(
@@ -1708,11 +1787,18 @@ function filterProducts() {
           )
             .toLowerCase();
 
+        const barcode =
+          String(
+            product.barcode || ''
+          )
+            .toLowerCase();
+
 
         return (
           name.includes(value) ||
           category.includes(value) ||
-          flavour.includes(value)
+          flavour.includes(value) ||
+          barcode.includes(value)
         );
 
       }
@@ -1985,10 +2071,107 @@ async function saveTransaction() {
 
 
 /* ==================================================
+   BARCODE SCANNER
+================================================== */
+
+async function startBarcodeScanner(target = 'lookup') {
+  scannerTarget = target;
+  scannerModal.style.display = 'flex';
+  document.getElementById('scannerStatus').textContent =
+    'Point your phone camera at the product barcode.';
+
+  try {
+    if (!window.Html5Qrcode) {
+      throw new Error('Barcode scanner library did not load.');
+    }
+
+    html5QrCode = new Html5Qrcode('barcodeReader');
+
+    const config = {
+      fps: 10,
+      qrbox: { width: 280, height: 140 },
+      aspectRatio: 1.777778,
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39
+      ]
+    };
+
+    await html5QrCode.start(
+      { facingMode: 'environment' },
+      config,
+      async function(decodedText) {
+        await handleBarcode(decodedText);
+      },
+      function() {}
+    );
+  }
+  catch (error) {
+    console.error('Scanner error:', error);
+    document.getElementById('scannerStatus').textContent =
+      'Unable to start camera. Please allow camera permission and try again.';
+  }
+}
+
+async function stopBarcodeScanner() {
+  if (html5QrCode) {
+    try {
+      if (html5QrCode.isScanning) {
+        await html5QrCode.stop();
+      }
+      html5QrCode.clear();
+    } catch (error) {
+      console.warn('Scanner stop error:', error);
+    }
+    html5QrCode = null;
+  }
+  scannerModal.style.display = 'none';
+}
+
+async function handleBarcode(rawBarcode) {
+  const barcode = String(rawBarcode || '').trim();
+  if (!barcode) return;
+
+  if (navigator.vibrate) navigator.vibrate(120);
+
+  await stopBarcodeScanner();
+
+  if (scannerTarget === 'new-product') {
+    document.getElementById('newBarcode').value = barcode;
+    addProductModal.style.display = 'flex';
+    return;
+  }
+
+  const product = products.find(
+    item => String(item.barcode || '').trim() === barcode
+  );
+
+  if (product) {
+    openModal(product.id);
+    return;
+  }
+
+  const addIt = confirm(
+    'Barcode ' + barcode + ' is not registered.\n\nWould you like to add this product now?'
+  );
+
+  if (addIt) {
+    openAddProductModal();
+    document.getElementById('newBarcode').value = barcode;
+  }
+}
+
+
+/* ==================================================
    ADD PRODUCT
 ================================================== */
 
 function openAddProductModal() {
+  document.getElementById('newBarcode').value = '';
   document.getElementById('newProductName').value = '';
   document.getElementById('newCategory').value = '';
   document.getElementById('newFlavour').value = '';
@@ -2003,6 +2186,7 @@ function closeAddProductModal() {
 }
 
 async function saveNewProduct() {
+  const barcode = document.getElementById('newBarcode').value.trim();
   const productName = document.getElementById('newProductName').value.trim();
   const category = document.getElementById('newCategory').value.trim();
   const flavour = document.getElementById('newFlavour').value.trim();
@@ -2040,7 +2224,8 @@ async function saveNewProduct() {
       p_flavour: flavour || null,
       p_selling_price: sellingPrice,
       p_current_stock: currentStock,
-      p_minimum_stock: minimumStock
+      p_minimum_stock: minimumStock,
+      p_barcode: barcode || null
     });
 
     if (error) {
@@ -2150,6 +2335,24 @@ cancelButton.addEventListener(
 addProductButton.addEventListener(
   'click',
   openAddProductModal
+);
+
+scanBarcodeButton.addEventListener(
+  'click',
+  function() { startBarcodeScanner('lookup'); }
+);
+
+scanForNewProductButton.addEventListener(
+  'click',
+  function() {
+    addProductModal.style.display = 'none';
+    startBarcodeScanner('new-product');
+  }
+);
+
+closeScannerButton.addEventListener(
+  'click',
+  stopBarcodeScanner
 );
 
 saveProductButton.addEventListener(
