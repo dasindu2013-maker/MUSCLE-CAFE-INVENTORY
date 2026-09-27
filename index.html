@@ -908,6 +908,17 @@
         <select id="saleProductSelect"></select>
       </div>
       <div class="field">
+        <label>Barcode</label>
+        <button id="saleScanBarcodeButton" class="scan-barcode-button" type="button" style="width:100%;padding:11px;">
+          📷 SCAN BARCODE & ADD TO CART
+        </button>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button id="saleEnterBarcodeButton" class="cancel-button" type="button" style="margin-top:0;">⌨️ Enter Barcode</button>
+          <button id="saleUploadBarcodeButton" class="cancel-button" type="button" style="margin-top:0;">🖼️ Upload Barcode</button>
+        </div>
+        <div id="saleBarcodeStatus" class="scanner-status">Scan the next product to add it to this sale.</div>
+      </div>
+      <div class="field">
         <label>Quantity</label>
         <input id="saleQuantity" type="number" min="1" step="1" value="1">
       </div>
@@ -1202,6 +1213,10 @@ const newSaleModal = document.getElementById('newSaleModal');
 const saleProductSelect = document.getElementById('saleProductSelect');
 const saleQuantity = document.getElementById('saleQuantity');
 const addToCartButton = document.getElementById('addToCartButton');
+const saleScanBarcodeButton = document.getElementById('saleScanBarcodeButton');
+const saleEnterBarcodeButton = document.getElementById('saleEnterBarcodeButton');
+const saleUploadBarcodeButton = document.getElementById('saleUploadBarcodeButton');
+const saleBarcodeStatus = document.getElementById('saleBarcodeStatus');
 const saleCart = document.getElementById('saleCart');
 const saleGrandTotal = document.getElementById('saleGrandTotal');
 const completeSaleButton = document.getElementById('completeSaleButton');
@@ -2202,6 +2217,7 @@ function openNewSale() {
     saleProductSelect.appendChild(option);
   });
   saleQuantity.value = 1;
+  saleBarcodeStatus.textContent = 'Scan the next product to add it to this sale.';
   document.getElementById('saleStaff').value = '';
   document.getElementById('saleNote').value = '';
   renderSaleCart();
@@ -2225,6 +2241,64 @@ function addSelectedProductToCart() {
   else saleCartItems.push({product:p, quantity:qty});
   saleQuantity.value = 1;
   renderSaleCart();
+}
+
+function addBarcodeProductToCart(rawBarcode) {
+  const barcode = String(rawBarcode || '').trim();
+  const status = saleBarcodeStatus;
+  if (!barcode) return;
+
+  const p = products.find(x => String(x.barcode || '').trim() === barcode);
+  if (!p) {
+    status.textContent = '✗ Barcode not registered: ' + barcode;
+    alert('This barcode is not registered to a product.');
+    return;
+  }
+
+  const qty = Number(saleQuantity.value || 1);
+  const existing = saleCartItems.find(x => String(x.product.id) === String(p.id));
+  const newQty = qty + (existing ? existing.quantity : 0);
+
+  if (newQty > Number(p.current_stock || 0)) {
+    status.textContent = 'Not enough stock for ' + p.product_name;
+    alert('Not enough stock. Available: ' + Number(p.current_stock || 0));
+    return;
+  }
+
+  if (existing) existing.quantity = newQty;
+  else saleCartItems.push({product:p, quantity:qty});
+
+  saleProductSelect.value = p.id;
+  saleQuantity.value = 1;
+  status.textContent = '✓ Added: ' + p.product_name + ' - ' + (p.flavour || 'Standard');
+  if (navigator.vibrate) navigator.vibrate(100);
+  renderSaleCart();
+}
+
+function enterSaleBarcode() {
+  const value = prompt('Enter or paste the product barcode:');
+  if (value !== null) addBarcodeProductToCart(value);
+}
+
+async function readSaleBarcodeImage(file) {
+  if (!file) return;
+  try {
+    const tempId = 'sale-barcode-reader-' + Date.now();
+    const temp = document.createElement('div');
+    temp.id = tempId;
+    temp.style.display = 'none';
+    document.body.appendChild(temp);
+    const reader = new Html5Qrcode(tempId);
+    const decoded = await reader.scanFile(file, true);
+    try { reader.clear(); } catch(e) {}
+    temp.remove();
+    addBarcodeProductToCart(decoded);
+  } catch(error) {
+    console.error(error);
+    alert('Barcode could not be read from this image.');
+  } finally {
+    barcodeImageInput.value = '';
+  }
 }
 
 function removeCartItem(productId) {
@@ -2788,6 +2862,12 @@ async function handleBarcode(rawBarcode) {
     return;
   }
 
+  if (scannerTarget === 'sale-cart') {
+    newSaleModal.style.display = 'flex';
+    addBarcodeProductToCart(barcode);
+    return;
+  }
+
   const product = products.find(
     item => String(item.barcode || '').trim() === barcode
   );
@@ -3097,6 +3177,15 @@ function escapeHtml(value) {
 
 newSaleButton.addEventListener('click', openNewSale);
 addToCartButton.addEventListener('click', addSelectedProductToCart);
+saleScanBarcodeButton.addEventListener('click', function() {
+  newSaleModal.style.display = 'none';
+  startBarcodeScanner('sale-cart');
+});
+saleEnterBarcodeButton.addEventListener('click', enterSaleBarcode);
+saleUploadBarcodeButton.addEventListener('click', function() {
+  barcodeImageInput.dataset.mode = 'sale-cart';
+  barcodeImageInput.click();
+});
 completeSaleButton.addEventListener('click', completeMultiSale);
 cancelSaleButton.addEventListener('click', function(){ newSaleModal.style.display='none'; });
 
@@ -3194,6 +3283,8 @@ barcodeImageInput.addEventListener(
     if (!file) return;
     if (barcodeImageInput.dataset.mode === 'update') {
       readUpdateBarcodeImage(file);
+    } else if (barcodeImageInput.dataset.mode === 'sale-cart') {
+      readSaleBarcodeImage(file);
     } else {
       readBarcodeImage(file);
     }
