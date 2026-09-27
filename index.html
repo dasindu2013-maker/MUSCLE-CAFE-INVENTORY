@@ -232,6 +232,23 @@
       margin-top: 5px;
     }
 
+    .inventory-actions {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .add-product-button {
+      border: none;
+      background: #16a34a;
+      color: white;
+      border-radius: 9px;
+      padding: 11px 16px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
     .search-box {
       margin-bottom: 18px;
     }
@@ -328,7 +345,8 @@
        MODAL
     =========================== */
 
-    #modal {
+    #modal,
+    #addProductModal {
       display: none;
       position: fixed;
       inset: 0;
@@ -650,6 +668,14 @@
     </section>
 
 
+    <!-- ADD PRODUCT -->
+
+    <div class="inventory-actions">
+      <button id="addProductButton" class="add-product-button" type="button">
+        + ADD PRODUCT
+      </button>
+    </div>
+
     <!-- SEARCH -->
 
     <div class="search-box">
@@ -676,6 +702,49 @@
   </main>
 
 
+
+  <!-- ==================================
+       ADD PRODUCT MODAL
+  =================================== -->
+
+  <div id="addProductModal">
+    <div class="modal-box">
+      <h2>Add New Product</h2>
+
+      <div class="field">
+        <label>Product Name</label>
+        <input id="newProductName" type="text" placeholder="e.g. Kevin Levrone">
+      </div>
+
+      <div class="field">
+        <label>Category</label>
+        <input id="newCategory" type="text" placeholder="e.g. Creatine">
+      </div>
+
+      <div class="field">
+        <label>Flavour</label>
+        <input id="newFlavour" type="text" placeholder="e.g. Unflavoured">
+      </div>
+
+      <div class="field">
+        <label>Selling Price (Rs.)</label>
+        <input id="newSellingPrice" type="number" min="0" step="0.01" placeholder="6000">
+      </div>
+
+      <div class="field">
+        <label>Opening Stock</label>
+        <input id="newCurrentStock" type="number" min="0" step="1" placeholder="12">
+      </div>
+
+      <div class="field">
+        <label>Minimum Stock Alert</label>
+        <input id="newMinimumStock" type="number" min="0" step="1" value="3">
+      </div>
+
+      <button id="saveProductButton" class="save-button" type="button">ADD PRODUCT</button>
+      <button id="cancelProductButton" class="cancel-button" type="button">Cancel</button>
+    </div>
+  </div>
 
   <!-- ==================================
        UPDATE MODAL
@@ -909,6 +978,18 @@ const cancelButton =
   document.getElementById(
     'cancelButton'
   );
+
+const addProductButton =
+  document.getElementById('addProductButton');
+
+const addProductModal =
+  document.getElementById('addProductModal');
+
+const saveProductButton =
+  document.getElementById('saveProductButton');
+
+const cancelProductButton =
+  document.getElementById('cancelProductButton');
 
 
 
@@ -1904,6 +1985,86 @@ async function saveTransaction() {
 
 
 /* ==================================================
+   ADD PRODUCT
+================================================== */
+
+function openAddProductModal() {
+  document.getElementById('newProductName').value = '';
+  document.getElementById('newCategory').value = '';
+  document.getElementById('newFlavour').value = '';
+  document.getElementById('newSellingPrice').value = '';
+  document.getElementById('newCurrentStock').value = '';
+  document.getElementById('newMinimumStock').value = '3';
+  addProductModal.style.display = 'flex';
+}
+
+function closeAddProductModal() {
+  addProductModal.style.display = 'none';
+}
+
+async function saveNewProduct() {
+  const productName = document.getElementById('newProductName').value.trim();
+  const category = document.getElementById('newCategory').value.trim();
+  const flavour = document.getElementById('newFlavour').value.trim();
+  const sellingPrice = Number(document.getElementById('newSellingPrice').value);
+  const currentStock = Number(document.getElementById('newCurrentStock').value);
+  const minimumStock = Number(document.getElementById('newMinimumStock').value);
+
+  if (!productName) {
+    alert('Please enter the product name.');
+    return;
+  }
+
+  if (!Number.isFinite(sellingPrice) || sellingPrice < 0) {
+    alert('Please enter a valid selling price.');
+    return;
+  }
+
+  if (!Number.isInteger(currentStock) || currentStock < 0) {
+    alert('Please enter a valid opening stock.');
+    return;
+  }
+
+  if (!Number.isInteger(minimumStock) || minimumStock < 0) {
+    alert('Please enter a valid minimum stock.');
+    return;
+  }
+
+  saveProductButton.disabled = true;
+  saveProductButton.textContent = 'ADDING...';
+
+  try {
+    const { data, error } = await db.rpc('add_inventory_product', {
+      p_product_name: productName,
+      p_category: category || null,
+      p_flavour: flavour || null,
+      p_selling_price: sellingPrice,
+      p_current_stock: currentStock,
+      p_minimum_stock: minimumStock
+    });
+
+    if (error) {
+      console.error('Add product error:', error);
+      alert('Unable to add product:\n' + error.message);
+      return;
+    }
+
+    closeAddProductModal();
+    await loadProducts();
+    alert('Product added successfully.');
+  }
+  catch (error) {
+    console.error('Unexpected add product error:', error);
+    alert('Unable to add product.');
+  }
+  finally {
+    saveProductButton.disabled = false;
+    saveProductButton.textContent = 'ADD PRODUCT';
+  }
+}
+
+
+/* ==================================================
    ESCAPE HTML
 ================================================== */
 
@@ -1984,6 +2145,30 @@ saveButton.addEventListener(
 cancelButton.addEventListener(
   'click',
   closeModal
+);
+
+addProductButton.addEventListener(
+  'click',
+  openAddProductModal
+);
+
+saveProductButton.addEventListener(
+  'click',
+  saveNewProduct
+);
+
+cancelProductButton.addEventListener(
+  'click',
+  closeAddProductModal
+);
+
+addProductModal.addEventListener(
+  'click',
+  function(event) {
+    if (event.target === addProductModal) {
+      closeAddProductModal();
+    }
+  }
 );
 
 
