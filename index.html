@@ -3177,17 +3177,19 @@ async function exportSalesPdf() {
 
   doc.setFont('helvetica','bold');
   doc.setFontSize(18);
-  doc.text('MUSCLE CAFE', 39, y);
-  y += 7;
+  doc.text('MUSCLE CAFE', 39, 18);
+
+  // Keep every other header line below the logo area.
+  y = 34;
   doc.setFontSize(12);
-  doc.text('Sales Results - ' + salesRangeLabel(salesRange), 39, y);
+  doc.text('Sales Results - ' + salesRangeLabel(salesRange), 14, y);
   y += 6;
   doc.setFont('helvetica','normal');
   doc.setFontSize(9);
-  doc.text('Generated: ' + new Date().toLocaleString(), 39, y);
+  doc.text('Generated: ' + new Date().toLocaleString(), 14, y);
 
-  // Start the report body below the logo/header so nothing overlaps.
-  y = 38;
+  // Start summary with generous separation from the header.
+  y = 50;
 
   const totalValue = rows.reduce((s,r) => s + Number(r.total || (Number(r.unit_price||0) * Number(r.quantity||0))), 0);
   const totalUnits = rows.reduce((s,r) => s + Number(r.quantity||0), 0);
