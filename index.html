@@ -18,6 +18,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
   <style>
 
@@ -885,6 +886,28 @@
   </div>
 
   <!-- ==================================
+       SALE INVOICE MODAL
+  =================================== -->
+  <div id="invoiceModal" style="display:none;position:fixed;inset:0;z-index:140;background:rgba(0,0,0,.72);align-items:center;justify-content:center;padding:20px;">
+    <div class="modal-box" style="max-width:520px;">
+      <div id="invoiceContent" style="background:white;padding:18px;border:1px solid #e5e7eb;">
+        <div style="text-align:center;">
+          <img src="logo.png" alt="Muscle Cafe" style="width:90px;height:auto;">
+          <h2 style="margin:6px 0 2px;">MUSCLE CAFE</h2>
+          <div>Supplement Store</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:3px;">SALES INVOICE</div>
+        </div>
+        <hr style="border:0;border-top:1px solid #ddd;margin:15px 0;">
+        <div id="invoiceDetails"></div>
+      </div>
+      <button id="shareInvoiceButton" class="save-button" type="button" style="margin-top:12px;">📤 SHARE INVOICE</button>
+      <button id="downloadInvoiceButton" class="cancel-button" type="button">⬇️ DOWNLOAD INVOICE</button>
+      <button id="printInvoiceButton" class="cancel-button" type="button">🖨️ PRINT</button>
+      <button id="closeInvoiceButton" class="cancel-button" type="button">Close</button>
+    </div>
+  </div>
+
+  <!-- ==================================
        BARCODE SCANNER MODAL
   =================================== -->
   <div id="scannerModal">
@@ -1072,6 +1095,7 @@ let currentUser = null;
 
 let updateBarcodeVerified = false;
 let salesRange = 'today';
+let lastInvoice = null;
 
 
 
@@ -1129,6 +1153,13 @@ const salesTab = document.getElementById('salesTab');
 const inventoryView = document.getElementById('inventoryView');
 const salesView = document.getElementById('salesView');
 const salesResults = document.getElementById('salesResults');
+
+const invoiceModal = document.getElementById('invoiceModal');
+const invoiceDetails = document.getElementById('invoiceDetails');
+const shareInvoiceButton = document.getElementById('shareInvoiceButton');
+const downloadInvoiceButton = document.getElementById('downloadInvoiceButton');
+const printInvoiceButton = document.getElementById('printInvoiceButton');
+const closeInvoiceButton = document.getElementById('closeInvoiceButton');
 
 const searchInput =
   document.getElementById(
@@ -2103,6 +2134,108 @@ function closeModal() {
 
 
 /* ==================================================
+   SALE INVOICE
+================================================== */
+
+function buildInvoice(product, quantity, transactionId, staff, note) {
+  const unitPrice = Number(product.selling_price || 0);
+  const total = unitPrice * quantity;
+  const now = new Date();
+
+  lastInvoice = {
+    transactionId: transactionId || '',
+    product: product.product_name,
+    flavour: product.flavour || 'Standard',
+    quantity,
+    unitPrice,
+    total,
+    staff: staff || (currentUser ? currentUser.email : ''),
+    note: note || '',
+    date: now
+  };
+
+  invoiceDetails.innerHTML =
+    '<div style="display:flex;justify-content:space-between;gap:12px;"><span>Invoice No.</span><strong>' +
+    escapeHtml(transactionId || ('SALE-' + Date.now())) + '</strong></div>' +
+    '<div style="display:flex;justify-content:space-between;gap:12px;margin-top:6px;"><span>Date</span><strong>' +
+    escapeHtml(now.toLocaleString()) + '</strong></div>' +
+    '<hr style="border:0;border-top:1px solid #ddd;margin:14px 0;">' +
+    '<div><strong>' + escapeHtml(product.product_name) + '</strong></div>' +
+    '<div style="color:#6b7280;">' + escapeHtml(product.flavour || 'Standard') + '</div>' +
+    '<div style="display:flex;justify-content:space-between;margin-top:10px;"><span>' +
+    quantity + ' × Rs. ' + unitPrice.toLocaleString('en-US',{maximumFractionDigits:0}) +
+    '</span><strong>Rs. ' + total.toLocaleString('en-US',{maximumFractionDigits:0}) + '</strong></div>' +
+    '<hr style="border:0;border-top:2px solid #111827;margin:14px 0;">' +
+    '<div style="display:flex;justify-content:space-between;font-size:20px;"><strong>TOTAL</strong><strong>Rs. ' +
+    total.toLocaleString('en-US',{maximumFractionDigits:0}) + '</strong></div>' +
+    (staff ? '<div style="font-size:12px;color:#6b7280;margin-top:14px;">Staff: ' + escapeHtml(staff) + '</div>' : '') +
+    (note ? '<div style="font-size:12px;color:#6b7280;margin-top:4px;">Note: ' + escapeHtml(note) + '</div>' : '') +
+    '<div style="text-align:center;margin-top:18px;font-size:12px;color:#6b7280;">Thank you for shopping with Muscle Cafe.</div>';
+
+  invoiceModal.style.display = 'flex';
+}
+
+async function invoiceBlob() {
+  const canvas = await html2canvas(document.getElementById('invoiceContent'), {
+    scale: 2,
+    backgroundColor: '#ffffff'
+  });
+  return await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+}
+
+async function shareInvoice() {
+  try {
+    const blob = await invoiceBlob();
+    const file = new File([blob], 'muscle-cafe-invoice.png', {type:'image/png'});
+
+    if (navigator.share && navigator.canShare && navigator.canShare({files:[file]})) {
+      await navigator.share({
+        title: 'Muscle Cafe Invoice',
+        text: 'Muscle Cafe sales invoice',
+        files: [file]
+      });
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'muscle-cafe-invoice.png';
+      a.click();
+      URL.revokeObjectURL(url);
+      alert('Invoice downloaded. You can share the image through WhatsApp or another app.');
+    }
+  } catch (error) {
+    if (error && error.name === 'AbortError') return;
+    console.error('Share invoice error:', error);
+    alert('Unable to share invoice.');
+  }
+}
+
+async function downloadInvoice() {
+  try {
+    const blob = await invoiceBlob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'muscle-cafe-invoice-' + Date.now() + '.png';
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error(error);
+    alert('Unable to download invoice.');
+  }
+}
+
+function printInvoice() {
+  const content = document.getElementById('invoiceContent').innerHTML;
+  const w = window.open('', '_blank', 'width=700,height=800');
+  w.document.write('<html><head><title>Muscle Cafe Invoice</title></head><body>' + content + '</body></html>');
+  w.document.close();
+  w.focus();
+  w.print();
+}
+
+
+/* ==================================================
    UPDATE BARCODE VERIFICATION
 ================================================== */
 
@@ -2239,6 +2372,10 @@ async function saveTransaction() {
   }
 
 
+  const invoiceProduct = { ...selectedProduct };
+  const invoiceStaff = staff || (currentUser ? currentUser.email : '');
+  const invoiceNote = note;
+
   saveButton.disabled =
     true;
 
@@ -2297,13 +2434,21 @@ async function saveTransaction() {
 
     closeModal();
 
-
     await loadProducts();
 
-
-    alert(
-      'Stock updated successfully.'
-    );
+    if (type === 'SALE') {
+      buildInvoice(
+        invoiceProduct,
+        quantity,
+        'MC-' + Date.now(),
+        invoiceStaff,
+        invoiceNote
+      );
+    } else {
+      alert(
+        'Stock updated successfully.'
+      );
+    }
 
   }
   catch (error) {
@@ -2706,6 +2851,16 @@ function escapeHtml(value) {
 /* ==================================================
    EVENT LISTENERS
 ================================================== */
+
+shareInvoiceButton.addEventListener('click', shareInvoice);
+downloadInvoiceButton.addEventListener('click', downloadInvoice);
+printInvoiceButton.addEventListener('click', printInvoice);
+closeInvoiceButton.addEventListener('click', function() {
+  invoiceModal.style.display = 'none';
+});
+invoiceModal.addEventListener('click', function(event) {
+  if (event.target === invoiceModal) invoiceModal.style.display = 'none';
+});
 
 inventoryTab.addEventListener('click', showInventoryView);
 salesTab.addEventListener('click', showSalesView);
