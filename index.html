@@ -2731,6 +2731,61 @@ function salesStartDate(range) {
   return start;
 }
 
+function openHistoricalInvoice(transactionId) {
+  const sale = window.salesRowsById && window.salesRowsById[String(transactionId)];
+  if (!sale) {
+    alert('Unable to find this sale.');
+    return;
+  }
+
+  const product = products.find(p => String(p.id) === String(sale.product_id)) || {
+    product_name: 'Product #' + sale.product_id,
+    flavour: '',
+    selling_price: Number(sale.unit_price || 0)
+  };
+
+  const invoiceProduct = {
+    ...product,
+    selling_price: Number(sale.unit_price || product.selling_price || 0)
+  };
+
+  const originalDate = sale.created_at ? new Date(sale.created_at) : new Date();
+  const unitPrice = Number(sale.unit_price || 0);
+  const total = Number(sale.total || unitPrice * Number(sale.quantity || 0));
+
+  lastInvoice = {
+    transactionId: sale.id,
+    product: invoiceProduct.product_name,
+    flavour: invoiceProduct.flavour || 'Standard',
+    quantity: Number(sale.quantity || 0),
+    unitPrice,
+    total,
+    staff: sale.staff_name || '',
+    note: sale.note || '',
+    date: originalDate
+  };
+
+  invoiceDetails.innerHTML =
+    '<div style="display:flex;justify-content:space-between;gap:12px;"><span>Invoice No.</span><strong>MC-' +
+    escapeHtml(sale.id) + '</strong></div>' +
+    '<div style="display:flex;justify-content:space-between;gap:12px;margin-top:6px;"><span>Date</span><strong>' +
+    escapeHtml(originalDate.toLocaleString()) + '</strong></div>' +
+    '<hr style="border:0;border-top:1px solid #ddd;margin:14px 0;">' +
+    '<div><strong>' + escapeHtml(invoiceProduct.product_name) + '</strong></div>' +
+    '<div style="color:#6b7280;">' + escapeHtml(invoiceProduct.flavour || 'Standard') + '</div>' +
+    '<div style="display:flex;justify-content:space-between;margin-top:10px;"><span>' +
+    Number(sale.quantity || 0) + ' × Rs. ' + unitPrice.toLocaleString('en-US',{maximumFractionDigits:0}) +
+    '</span><strong>Rs. ' + total.toLocaleString('en-US',{maximumFractionDigits:0}) + '</strong></div>' +
+    '<hr style="border:0;border-top:2px solid #111827;margin:14px 0;">' +
+    '<div style="display:flex;justify-content:space-between;font-size:20px;"><strong>TOTAL</strong><strong>Rs. ' +
+    total.toLocaleString('en-US',{maximumFractionDigits:0}) + '</strong></div>' +
+    (sale.staff_name ? '<div style="font-size:12px;color:#6b7280;margin-top:14px;">Staff: ' + escapeHtml(sale.staff_name) + '</div>' : '') +
+    (sale.note ? '<div style="font-size:12px;color:#6b7280;margin-top:4px;">Note: ' + escapeHtml(sale.note) + '</div>' : '') +
+    '<div style="text-align:center;margin-top:18px;font-size:12px;color:#6b7280;">Thank you for shopping with Muscle Cafe.</div>';
+
+  invoiceModal.style.display = 'flex';
+}
+
 async function loadSales(range = salesRange) {
   salesRange = range;
   salesResults.innerHTML = '<div class="loading">Loading sales...</div>';
@@ -2757,6 +2812,9 @@ async function loadSales(range = salesRange) {
   }
 
   const rows = data || [];
+  window.salesRowsById = {};
+  rows.forEach(r => { window.salesRowsById[String(r.id)] = r; });
+
   const totalValue = rows.reduce((s,r) => s + Number(r.total || (Number(r.unit_price||0)*Number(r.quantity||0))),0);
   const totalUnits = rows.reduce((s,r) => s + Number(r.quantity||0),0);
 
@@ -2774,7 +2832,7 @@ async function loadSales(range = salesRange) {
   products.forEach(p => { productMap[String(p.id)] = p; });
 
   let html = '<div class="sales-table-wrap"><table class="sales-table"><thead><tr>' +
-    '<th>Date / Time</th><th>Product</th><th>Qty</th><th>Unit Price</th><th>Total</th><th>Staff</th>' +
+    '<th>Date / Time</th><th>Product</th><th>Qty</th><th>Unit Price</th><th>Total</th><th>Staff</th><th>Invoice</th>' +
     '</tr></thead><tbody>';
 
   rows.forEach(r => {
@@ -2791,6 +2849,7 @@ async function loadSales(range = salesRange) {
       '<td>Rs. ' + unitPrice.toLocaleString('en-US',{maximumFractionDigits:0}) + '</td>' +
       '<td><strong>Rs. ' + total.toLocaleString('en-US',{maximumFractionDigits:0}) + '</strong></td>' +
       '<td>' + escapeHtml(r.staff_name || '-') + '</td>' +
+      '<td><button type="button" onclick="openHistoricalInvoice(' + Number(r.id) + ')" style="border:0;background:none;color:#2563eb;text-decoration:underline;cursor:pointer;font-weight:bold;padding:0;">Click here</button></td>' +
       '</tr>';
   });
 
