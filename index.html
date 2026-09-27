@@ -338,6 +338,15 @@
       font-size:13px;
     }
     .sales-table th { background:#1f2937;color:white; }
+    .new-sale-button {
+      border:none;background:#7c3aed;color:white;border-radius:9px;
+      padding:11px 16px;cursor:pointer;font-weight:bold;font-size:14px;
+    }
+    .cart-row {
+      display:grid;grid-template-columns:minmax(0,1fr) 70px 100px 70px;
+      gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid #e5e7eb;
+    }
+    .cart-total {font-size:22px;font-weight:bold;text-align:right;margin:15px 0;}
     .search-box {
       margin-bottom: 18px;
     }
@@ -788,6 +797,9 @@
       <button id="addProductButton" class="add-product-button" type="button">
         + ADD PRODUCT
       </button>
+      <button id="newSaleButton" class="new-sale-button" type="button">
+        🛒 NEW SALE
+      </button>
       <input id="barcodeImageInput" type="file" accept="image/*" style="display:none">
     </div>
 
@@ -882,6 +894,36 @@
 
       <button id="saveProductButton" class="save-button" type="button">ADD PRODUCT</button>
       <button id="cancelProductButton" class="cancel-button" type="button">Cancel</button>
+    </div>
+  </div>
+
+  <!-- ==================================
+       MULTI-PRODUCT SALE
+  =================================== -->
+  <div id="newSaleModal" style="display:none;position:fixed;inset:0;z-index:130;background:rgba(0,0,0,.72);align-items:center;justify-content:center;padding:20px;">
+    <div class="modal-box" style="max-width:620px;">
+      <h2>🛒 New Sale</h2>
+      <div class="field">
+        <label>Add Product</label>
+        <select id="saleProductSelect"></select>
+      </div>
+      <div class="field">
+        <label>Quantity</label>
+        <input id="saleQuantity" type="number" min="1" step="1" value="1">
+      </div>
+      <button id="addToCartButton" class="save-button" type="button">+ ADD TO CART</button>
+      <div id="saleCart" style="margin-top:15px;"></div>
+      <div id="saleGrandTotal" class="cart-total">Grand Total: Rs. 0</div>
+      <div class="field">
+        <label>Staff Name</label>
+        <input id="saleStaff" type="text" placeholder="Optional">
+      </div>
+      <div class="field">
+        <label>Note</label>
+        <textarea id="saleNote" placeholder="Optional"></textarea>
+      </div>
+      <button id="completeSaleButton" class="save-button" type="button">COMPLETE SALE & GENERATE INVOICE</button>
+      <button id="cancelSaleButton" class="cancel-button" type="button">Cancel</button>
     </div>
   </div>
 
@@ -1096,6 +1138,7 @@ let currentUser = null;
 let updateBarcodeVerified = false;
 let salesRange = 'today';
 let lastInvoice = null;
+let saleCartItems = [];
 
 
 
@@ -1153,6 +1196,16 @@ const salesTab = document.getElementById('salesTab');
 const inventoryView = document.getElementById('inventoryView');
 const salesView = document.getElementById('salesView');
 const salesResults = document.getElementById('salesResults');
+
+const newSaleButton = document.getElementById('newSaleButton');
+const newSaleModal = document.getElementById('newSaleModal');
+const saleProductSelect = document.getElementById('saleProductSelect');
+const saleQuantity = document.getElementById('saleQuantity');
+const addToCartButton = document.getElementById('addToCartButton');
+const saleCart = document.getElementById('saleCart');
+const saleGrandTotal = document.getElementById('saleGrandTotal');
+const completeSaleButton = document.getElementById('completeSaleButton');
+const cancelSaleButton = document.getElementById('cancelSaleButton');
 
 const invoiceModal = document.getElementById('invoiceModal');
 const invoiceDetails = document.getElementById('invoiceDetails');
@@ -2134,6 +2187,137 @@ function closeModal() {
 
 
 /* ==================================================
+   MULTI-PRODUCT SALE
+================================================== */
+
+function openNewSale() {
+  saleCartItems = [];
+  saleProductSelect.innerHTML = '';
+  products.filter(p => Number(p.current_stock||0) > 0).forEach(p => {
+    const option = document.createElement('option');
+    option.value = p.id;
+    option.textContent = p.product_name + ' - ' + (p.flavour || 'Standard') +
+      ' | Stock: ' + Number(p.current_stock||0) +
+      ' | Rs. ' + Number(p.selling_price||0).toLocaleString('en-US');
+    saleProductSelect.appendChild(option);
+  });
+  saleQuantity.value = 1;
+  document.getElementById('saleStaff').value = '';
+  document.getElementById('saleNote').value = '';
+  renderSaleCart();
+  newSaleModal.style.display = 'flex';
+}
+
+function addSelectedProductToCart() {
+  const p = products.find(x => String(x.id) === String(saleProductSelect.value));
+  const qty = Number(saleQuantity.value);
+  if (!p || !Number.isInteger(qty) || qty < 1) {
+    alert('Please choose a product and valid quantity.');
+    return;
+  }
+  const existing = saleCartItems.find(x => String(x.product.id) === String(p.id));
+  const newQty = qty + (existing ? existing.quantity : 0);
+  if (newQty > Number(p.current_stock||0)) {
+    alert('Not enough stock. Available: ' + Number(p.current_stock||0));
+    return;
+  }
+  if (existing) existing.quantity = newQty;
+  else saleCartItems.push({product:p, quantity:qty});
+  saleQuantity.value = 1;
+  renderSaleCart();
+}
+
+function removeCartItem(productId) {
+  saleCartItems = saleCartItems.filter(x => String(x.product.id) !== String(productId));
+  renderSaleCart();
+}
+
+function renderSaleCart() {
+  if (!saleCartItems.length) {
+    saleCart.innerHTML = '<div class="empty" style="padding:18px;">Cart is empty.</div>';
+    saleGrandTotal.textContent = 'Grand Total: Rs. 0';
+    return;
+  }
+  let total = 0;
+  saleCart.innerHTML = saleCartItems.map(item => {
+    const line = Number(item.product.selling_price||0) * item.quantity;
+    total += line;
+    return '<div class="cart-row"><div><strong>' + escapeHtml(item.product.product_name) +
+      '</strong><br><small>' + escapeHtml(item.product.flavour||'Standard') +
+      '</small></div><div>× ' + item.quantity + '</div><div>Rs. ' +
+      line.toLocaleString('en-US',{maximumFractionDigits:0}) +
+      '</div><button type="button" class="delete-button" onclick="removeCartItem(' +
+      Number(item.product.id) + ')">Remove</button></div>';
+  }).join('');
+  saleGrandTotal.textContent = 'Grand Total: Rs. ' +
+    total.toLocaleString('en-US',{maximumFractionDigits:0});
+}
+
+function buildMultiInvoice(invoiceNo, items, staff, note) {
+  const now = new Date();
+  let grand = 0;
+  let itemHtml = '';
+  items.forEach(item => {
+    const price = Number(item.product.selling_price||0);
+    const line = price * item.quantity;
+    grand += line;
+    itemHtml += '<div style="padding:9px 0;border-bottom:1px solid #eee;"><strong>' +
+      escapeHtml(item.product.product_name) + '</strong><div style="color:#6b7280;">' +
+      escapeHtml(item.product.flavour||'Standard') + '</div><div style="display:flex;justify-content:space-between;margin-top:4px;"><span>' +
+      item.quantity + ' × Rs. ' + price.toLocaleString('en-US',{maximumFractionDigits:0}) +
+      '</span><strong>Rs. ' + line.toLocaleString('en-US',{maximumFractionDigits:0}) + '</strong></div></div>';
+  });
+  invoiceDetails.innerHTML =
+    '<div style="display:flex;justify-content:space-between;"><span>Invoice No.</span><strong>' + escapeHtml(invoiceNo) + '</strong></div>' +
+    '<div style="display:flex;justify-content:space-between;margin-top:6px;"><span>Date</span><strong>' + escapeHtml(now.toLocaleString()) + '</strong></div>' +
+    '<hr style="border:0;border-top:1px solid #ddd;margin:14px 0;">' + itemHtml +
+    '<div style="display:flex;justify-content:space-between;font-size:20px;margin-top:15px;"><strong>GRAND TOTAL</strong><strong>Rs. ' +
+    grand.toLocaleString('en-US',{maximumFractionDigits:0}) + '</strong></div>' +
+    (staff ? '<div style="font-size:12px;color:#6b7280;margin-top:14px;">Staff: ' + escapeHtml(staff) + '</div>' : '') +
+    (note ? '<div style="font-size:12px;color:#6b7280;margin-top:4px;">Note: ' + escapeHtml(note) + '</div>' : '') +
+    '<div style="text-align:center;margin-top:18px;font-size:12px;color:#6b7280;">Thank you for shopping with Muscle Cafe.</div>';
+  invoiceModal.style.display = 'flex';
+}
+
+async function completeMultiSale() {
+  if (!saleCartItems.length) {
+    alert('Please add at least one product.');
+    return;
+  }
+  completeSaleButton.disabled = true;
+  completeSaleButton.textContent = 'PROCESSING...';
+  const staff = document.getElementById('saleStaff').value.trim() || (currentUser ? currentUser.email : '');
+  const note = document.getElementById('saleNote').value.trim();
+  const invoiceNo = 'MC-' + Date.now();
+  const completed = [];
+
+  try {
+    for (const item of saleCartItems) {
+      const { error } = await db.rpc('record_inventory_transaction', {
+        p_product_id: item.product.id,
+        p_transaction_type: 'SALE',
+        p_quantity: item.quantity,
+        p_staff_name: staff,
+        p_note: (note ? note + ' | ' : '') + 'Invoice: ' + invoiceNo
+      });
+      if (error) throw error;
+      completed.push({product:{...item.product},quantity:item.quantity});
+    }
+    newSaleModal.style.display = 'none';
+    await loadProducts();
+    buildMultiInvoice(invoiceNo, completed, staff, note);
+  } catch (error) {
+    console.error('Multi sale error:', error);
+    alert('Sale could not be completed:\n' + error.message +
+      (completed.length ? '\nSome earlier items may already have been recorded. Please check Sales Results.' : ''));
+  } finally {
+    completeSaleButton.disabled = false;
+    completeSaleButton.textContent = 'COMPLETE SALE & GENERATE INVOICE';
+  }
+}
+
+
+/* ==================================================
    SALE INVOICE
 ================================================== */
 
@@ -2910,6 +3094,11 @@ function escapeHtml(value) {
 /* ==================================================
    EVENT LISTENERS
 ================================================== */
+
+newSaleButton.addEventListener('click', openNewSale);
+addToCartButton.addEventListener('click', addSelectedProductToCart);
+completeSaleButton.addEventListener('click', completeMultiSale);
+cancelSaleButton.addEventListener('click', function(){ newSaleModal.style.display='none'; });
 
 shareInvoiceButton.addEventListener('click', shareInvoice);
 downloadInvoiceButton.addEventListener('click', downloadInvoice);
