@@ -712,6 +712,13 @@
       <button id="scanBarcodeButton" class="scan-barcode-button" type="button">
         📷 SCAN BARCODE
       </button>
+      <button id="enterBarcodeButton" class="scan-barcode-button" type="button">
+        ⌨️ ENTER BARCODE
+      </button>
+      <button id="uploadBarcodeButton" class="scan-barcode-button" type="button">
+        🖼️ UPLOAD BARCODE
+      </button>
+      <input id="barcodeImageInput" type="file" accept="image/*" style="display:none">
     </div>
 
     <!-- SEARCH -->
@@ -1052,6 +1059,15 @@ const scanBarcodeButton =
 
 const scanForNewProductButton =
   document.getElementById('scanForNewProductButton');
+
+const enterBarcodeButton =
+  document.getElementById('enterBarcodeButton');
+
+const uploadBarcodeButton =
+  document.getElementById('uploadBarcodeButton');
+
+const barcodeImageInput =
+  document.getElementById('barcodeImageInput');
 
 const scannerModal =
   document.getElementById('scannerModal');
@@ -2132,6 +2148,50 @@ async function stopBarcodeScanner() {
   scannerModal.style.display = 'none';
 }
 
+async function readBarcodeImage(file) {
+  if (!file) return;
+
+  try {
+    if (!window.Html5Qrcode) {
+      throw new Error('Barcode reader library did not load.');
+    }
+
+    const tempId = 'barcode-image-reader-' + Date.now();
+    const temp = document.createElement('div');
+    temp.id = tempId;
+    temp.style.display = 'none';
+    document.body.appendChild(temp);
+
+    const imageReader = new Html5Qrcode(tempId);
+    const decodedText = await imageReader.scanFile(file, true);
+
+    try { imageReader.clear(); } catch (e) {}
+    temp.remove();
+
+    await handleBarcode(decodedText);
+  }
+  catch (error) {
+    console.error('Barcode image error:', error);
+    alert('Barcode could not be read from this image. Please try a clearer image or enter the barcode manually.');
+  }
+  finally {
+    barcodeImageInput.value = '';
+  }
+}
+
+function enterBarcodeManually() {
+  const value = prompt('Enter or paste the product barcode:');
+  if (value === null) return;
+
+  const barcode = String(value).trim();
+  if (!barcode) {
+    alert('Please enter a barcode.');
+    return;
+  }
+
+  handleBarcode(barcode);
+}
+
 async function handleBarcode(rawBarcode) {
   const barcode = String(rawBarcode || '').trim();
   if (!barcode) return;
@@ -2340,6 +2400,24 @@ addProductButton.addEventListener(
 scanBarcodeButton.addEventListener(
   'click',
   function() { startBarcodeScanner('lookup'); }
+);
+
+enterBarcodeButton.addEventListener(
+  'click',
+  enterBarcodeManually
+);
+
+uploadBarcodeButton.addEventListener(
+  'click',
+  function() { barcodeImageInput.click(); }
+);
+
+barcodeImageInput.addEventListener(
+  'change',
+  function(event) {
+    const file = event.target.files && event.target.files[0];
+    if (file) readBarcodeImage(file);
+  }
 );
 
 scanForNewProductButton.addEventListener(
