@@ -3150,9 +3150,27 @@ function exportSalesPdf() {
   products.forEach(p => { productMap[String(p.id)] = p; });
 
   let y = 16;
+
+  // Add Muscle Cafe logo to the PDF header.
+  try {
+    const logo = document.querySelector('img[src="logo.png"]');
+    if (logo && logo.complete && logo.naturalWidth) {
+      const canvas = document.createElement('canvas');
+      const size = 300;
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(logo, 0, 0, size, size);
+      const logoData = canvas.toDataURL('image/png');
+      doc.addImage(logoData, 'PNG', 14, 8, 24, 24);
+    }
+  } catch (e) {
+    console.warn('PDF logo could not be added:', e);
+  }
+
   doc.setFont('helvetica','bold');
   doc.setFontSize(18);
-  doc.text('MUSCLE CAFE', 14, y);
+  doc.text('MUSCLE CAFE', 43, y);
   y += 7;
   doc.setFontSize(12);
   doc.text('Sales Results - ' + salesRangeLabel(salesRange), 14, y);
