@@ -19,6 +19,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
   <style>
 
@@ -833,6 +834,10 @@
         <button class="view-tab sales-range" data-range="week" type="button">This Week</button>
         <button class="view-tab sales-range" data-range="month" type="button">This Month</button>
         <button class="view-tab sales-range" data-range="all" type="button">All Sales</button>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+        <button id="exportSalesPdfButton" class="scan-barcode-button" type="button">📄 DOWNLOAD SALES PDF</button>
       </div>
 
       <div class="sales-summary">
@@ -3121,6 +3126,95 @@ async function loadSales(range = salesRange) {
   salesResults.innerHTML = html;
 }
 
+function salesRangeLabel(range) {
+  if (range === 'today') return 'Today';
+  if (range === 'week') return 'This Week';
+  if (range === 'month') return 'This Month';
+  return 'All Sales';
+}
+
+function exportSalesPdf() {
+  const rows = Object.values(window.salesRowsById || {});
+  if (!rows.length) {
+    alert('There are no sales results to export for this period.');
+    return;
+  }
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    alert('PDF library is still loading. Please try again.');
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({orientation:'landscape', unit:'mm', format:'a4'});
+  const productMap = {};
+  products.forEach(p => { productMap[String(p.id)] = p; });
+
+  let y = 16;
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(18);
+  doc.text('MUSCLE CAFE', 14, y);
+  y += 7;
+  doc.setFontSize(12);
+  doc.text('Sales Results - ' + salesRangeLabel(salesRange), 14, y);
+  y += 6;
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(9);
+  doc.text('Generated: ' + new Date().toLocaleString(), 14, y);
+  y += 10;
+
+  const totalValue = rows.reduce((s,r) => s + Number(r.total || (Number(r.unit_price||0) * Number(r.quantity||0))), 0);
+  const totalUnits = rows.reduce((s,r) => s + Number(r.quantity||0), 0);
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(10);
+  doc.text('Sales Value: Rs. ' + totalValue.toLocaleString('en-US',{maximumFractionDigits:0}), 14, y);
+  doc.text('Units Sold: ' + totalUnits, 95, y);
+  doc.text('Transactions: ' + rows.length, 150, y);
+  y += 8;
+
+  const widths = [38,78,16,31,31,42];
+  const heads = ['Date / Time','Product','Qty','Unit Price','Total','Staff'];
+  const x0 = 14;
+
+  function header() {
+    let x=x0;
+    doc.setFont('helvetica','bold'); doc.setFontSize(8);
+    heads.forEach((h,i) => { doc.text(h,x+1,y+4); x += widths[i]; });
+    doc.line(x0,y+6,x0+widths.reduce((a,b)=>a+b,0),y+6);
+    y += 8;
+  }
+  header();
+  doc.setFont('helvetica','normal');
+
+  rows.forEach(r => {
+    if (y > 190) { doc.addPage(); y=14; header(); doc.setFont('helvetica','normal'); }
+    const p = productMap[String(r.product_id)];
+    let name = p ? p.product_name + (p.flavour ? ' - '+p.flavour : '') : 'Product #'+r.product_id;
+    if (name.length > 42) name = name.slice(0,39)+'...';
+    const price = Number(r.unit_price||0);
+    const total = Number(r.total || price*Number(r.quantity||0));
+    const cells = [
+      new Date(r.created_at).toLocaleString(),
+      name,
+      String(Number(r.quantity||0)),
+      'Rs. '+price.toLocaleString('en-US',{maximumFractionDigits:0}),
+      'Rs. '+total.toLocaleString('en-US',{maximumFractionDigits:0}),
+      r.staff_name || '-'
+    ];
+    let x=x0; doc.setFontSize(7.5);
+    cells.forEach((v,i) => { doc.text(String(v).slice(0,48),x+1,y+4); x += widths[i]; });
+    doc.line(x0,y+6,x0+widths.reduce((a,b)=>a+b,0),y+6);
+    y += 8;
+  });
+
+  y += 4;
+  if (y > 188) { doc.addPage(); y=16; }
+  doc.setFont('helvetica','bold'); doc.setFontSize(11);
+  doc.text('TOTAL SALES: Rs. ' + totalValue.toLocaleString('en-US',{maximumFractionDigits:0}), 14, y);
+
+  const stamp = new Date().toISOString().slice(0,10);
+  doc.save('Muscle-Cafe-Sales-' + salesRangeLabel(salesRange).replaceAll(' ','-') + '-' + stamp + '.pdf');
+}
+
 function showInventoryView() {
   inventoryView.style.display = 'block';
   salesView.style.display = 'none';
@@ -3198,6 +3292,8 @@ closeInvoiceButton.addEventListener('click', function() {
 invoiceModal.addEventListener('click', function(event) {
   if (event.target === invoiceModal) invoiceModal.style.display = 'none';
 });
+
+document.getElementById('exportSalesPdfButton').addEventListener('click', exportSalesPdf);
 
 inventoryTab.addEventListener('click', showInventoryView);
 salesTab.addEventListener('click', showSalesView);
