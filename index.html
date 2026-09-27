@@ -312,7 +312,7 @@
     .product-row {
       display: grid;
       grid-template-columns:
-        minmax(0, 1fr) 100px 90px;
+        minmax(0, 1fr) 100px 180px;
       align-items: center;
       gap: 10px;
       padding: 13px 16px;
@@ -350,6 +350,22 @@
 
     .stock-out {
       color: #dc2626;
+    }
+
+    .row-actions {
+      display: flex;
+      gap: 6px;
+      justify-content: flex-end;
+    }
+
+    .delete-button {
+      border: none;
+      background: #dc2626;
+      color: white;
+      border-radius: 7px;
+      padding: 9px;
+      cursor: pointer;
+      font-weight: bold;
     }
 
     .update-button {
@@ -505,7 +521,7 @@
 
       .product-row {
         grid-template-columns:
-          minmax(0, 1fr) 48px 72px;
+          minmax(0, 1fr) 48px 145px;
 
         padding:
           12px 10px;
@@ -1652,6 +1668,27 @@ function renderProducts(list) {
               );
 
 
+              const deleteButton =
+                document.createElement('button');
+
+              deleteButton.type = 'button';
+              deleteButton.className = 'delete-button';
+              deleteButton.textContent = 'Remove';
+
+              deleteButton.addEventListener(
+                'click',
+                function() {
+                  removeProduct(product);
+                }
+              );
+
+              const actions =
+                document.createElement('div');
+
+              actions.className = 'row-actions';
+              actions.appendChild(button);
+              actions.appendChild(deleteButton);
+
               row.appendChild(
                 info
               );
@@ -1661,7 +1698,7 @@ function renderProducts(list) {
               );
 
               row.appendChild(
-                button
+                actions
               );
 
 
@@ -1682,6 +1719,56 @@ function renderProducts(list) {
 
 }
 
+
+
+/* ==================================================
+   REMOVE PRODUCT
+================================================== */
+
+async function removeProduct(product) {
+  if (!product) return;
+
+  const label =
+    product.product_name +
+    (product.flavour ? ' - ' + product.flavour : '');
+
+  const confirmed = confirm(
+    'REMOVE PRODUCT?\n\n' +
+    label +
+    '\n\nThis will remove the product from the inventory list. This action cannot be undone.'
+  );
+
+  if (!confirmed) return;
+
+  const typed = prompt(
+    'For safety, type REMOVE to confirm deletion of:\n' + label
+  );
+
+  if (typed !== 'REMOVE') {
+    if (typed !== null) alert('Product was not removed.');
+    return;
+  }
+
+  try {
+    const { error } = await db.rpc(
+      'delete_inventory_product',
+      { p_product_id: product.id }
+    );
+
+    if (error) {
+      console.error('Remove product error:', error);
+      alert('Unable to remove product:\n' + error.message);
+      return;
+    }
+
+    await loadProducts();
+    alert('Product removed successfully.');
+  }
+  catch (error) {
+    console.error('Unexpected remove error:', error);
+    alert('Unable to remove product.');
+  }
+}
 
 
 /* ==================================================
