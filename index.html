@@ -2426,7 +2426,7 @@ function buildInvoice(product, quantity, transactionId, staff, note) {
     '<hr style="border:0;border-top:1px solid #ddd;margin:14px 0;">' +
     '<div><strong>' + escapeHtml(product.product_name) + '</strong></div>' +
     '<div style="color:#6b7280;">' + escapeHtml(product.flavour || 'Standard') + '</div>' +
-    '<div style="font-size:12px;color:#6b7280;margin-top:3px;">Barcode: ' + escapeHtml(product.barcode || 'Not registered') + '</div>' +
+    '<div style="margin-top:7px;padding:7px 9px;background:#f3f4f6;border-radius:6px;font-size:13px;"><strong>Barcode:</strong> ' + escapeHtml(product.barcode || 'Not registered') + '</div>' +
     '<div style="display:flex;justify-content:space-between;margin-top:10px;"><span>' +
     quantity + ' × Rs. ' + unitPrice.toLocaleString('en-US',{maximumFractionDigits:0}) +
     '</span><strong>Rs. ' + total.toLocaleString('en-US',{maximumFractionDigits:0}) + '</strong></div>' +
@@ -3044,7 +3044,7 @@ function openHistoricalInvoice(transactionId) {
     '<hr style="border:0;border-top:1px solid #ddd;margin:14px 0;">' +
     '<div><strong>' + escapeHtml(invoiceProduct.product_name) + '</strong></div>' +
     '<div style="color:#6b7280;">' + escapeHtml(invoiceProduct.flavour || 'Standard') + '</div>' +
-    '<div style="font-size:12px;color:#6b7280;margin-top:3px;">Barcode: ' + escapeHtml(invoiceProduct.barcode || 'Not registered') + '</div>' +
+    '<div style="margin-top:7px;padding:7px 9px;background:#f3f4f6;border-radius:6px;font-size:13px;"><strong>Barcode:</strong> ' + escapeHtml(invoiceProduct.barcode || 'Not registered') + '</div>' +
     '<div style="display:flex;justify-content:space-between;margin-top:10px;"><span>' +
     Number(sale.quantity || 0) + ' × Rs. ' + unitPrice.toLocaleString('en-US',{maximumFractionDigits:0}) +
     '</span><strong>Rs. ' + total.toLocaleString('en-US',{maximumFractionDigits:0}) + '</strong></div>' +
@@ -3116,8 +3116,8 @@ async function loadSales(range = salesRange) {
     const total = Number(r.total || unitPrice * Number(r.quantity||0));
     html += '<tr>' +
       '<td>' + escapeHtml(new Date(r.created_at).toLocaleString()) + '</td>' +
-      '<td>' + escapeHtml(productName) + '</td>' +
-      '<td>' + escapeHtml(p && p.barcode ? p.barcode : '-') + '</td>' +
+      '<td>' + escapeHtml(productName) + '<div style="font-size:11px;color:#6b7280;margin-top:3px;">Barcode: ' + escapeHtml(p && p.barcode ? p.barcode : 'Not registered') + '</div></td>' +
+      '<td>' + escapeHtml(p && p.barcode ? p.barcode : 'Not registered') + '</td>' +
       '<td>' + Number(r.quantity||0) + '</td>' +
       '<td>Rs. ' + unitPrice.toLocaleString('en-US',{maximumFractionDigits:0}) + '</td>' +
       '<td><strong>Rs. ' + total.toLocaleString('en-US',{maximumFractionDigits:0}) + '</strong></td>' +
