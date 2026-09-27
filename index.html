@@ -2342,7 +2342,8 @@ function buildMultiInvoice(invoiceNo, items, staff, note) {
     grand += line;
     itemHtml += '<div style="padding:9px 0;border-bottom:1px solid #eee;"><strong>' +
       escapeHtml(item.product.product_name) + '</strong><div style="color:#6b7280;">' +
-      escapeHtml(item.product.flavour||'Standard') + '</div><div style="display:flex;justify-content:space-between;margin-top:4px;"><span>' +
+      escapeHtml(item.product.flavour||'Standard') + '</div><div style="font-size:11px;color:#6b7280;margin-top:2px;">Barcode: ' +
+      escapeHtml(item.product.barcode||'Not registered') + '</div><div style="display:flex;justify-content:space-between;margin-top:4px;"><span>' +
       item.quantity + ' × Rs. ' + price.toLocaleString('en-US',{maximumFractionDigits:0}) +
       '</span><strong>Rs. ' + line.toLocaleString('en-US',{maximumFractionDigits:0}) + '</strong></div></div>';
   });
@@ -2425,6 +2426,7 @@ function buildInvoice(product, quantity, transactionId, staff, note) {
     '<hr style="border:0;border-top:1px solid #ddd;margin:14px 0;">' +
     '<div><strong>' + escapeHtml(product.product_name) + '</strong></div>' +
     '<div style="color:#6b7280;">' + escapeHtml(product.flavour || 'Standard') + '</div>' +
+    '<div style="font-size:12px;color:#6b7280;margin-top:3px;">Barcode: ' + escapeHtml(product.barcode || 'Not registered') + '</div>' +
     '<div style="display:flex;justify-content:space-between;margin-top:10px;"><span>' +
     quantity + ' × Rs. ' + unitPrice.toLocaleString('en-US',{maximumFractionDigits:0}) +
     '</span><strong>Rs. ' + total.toLocaleString('en-US',{maximumFractionDigits:0}) + '</strong></div>' +
@@ -3042,6 +3044,7 @@ function openHistoricalInvoice(transactionId) {
     '<hr style="border:0;border-top:1px solid #ddd;margin:14px 0;">' +
     '<div><strong>' + escapeHtml(invoiceProduct.product_name) + '</strong></div>' +
     '<div style="color:#6b7280;">' + escapeHtml(invoiceProduct.flavour || 'Standard') + '</div>' +
+    '<div style="font-size:12px;color:#6b7280;margin-top:3px;">Barcode: ' + escapeHtml(invoiceProduct.barcode || 'Not registered') + '</div>' +
     '<div style="display:flex;justify-content:space-between;margin-top:10px;"><span>' +
     Number(sale.quantity || 0) + ' × Rs. ' + unitPrice.toLocaleString('en-US',{maximumFractionDigits:0}) +
     '</span><strong>Rs. ' + total.toLocaleString('en-US',{maximumFractionDigits:0}) + '</strong></div>' +
@@ -3101,7 +3104,7 @@ async function loadSales(range = salesRange) {
   products.forEach(p => { productMap[String(p.id)] = p; });
 
   let html = '<div class="sales-table-wrap"><table class="sales-table"><thead><tr>' +
-    '<th>Date / Time</th><th>Product</th><th>Qty</th><th>Unit Price</th><th>Total</th><th>Staff</th><th>Invoice</th>' +
+    '<th>Date / Time</th><th>Product</th><th>Barcode</th><th>Qty</th><th>Unit Price</th><th>Total</th><th>Staff</th><th>Invoice</th>' +
     '</tr></thead><tbody>';
 
   rows.forEach(r => {
@@ -3114,6 +3117,7 @@ async function loadSales(range = salesRange) {
     html += '<tr>' +
       '<td>' + escapeHtml(new Date(r.created_at).toLocaleString()) + '</td>' +
       '<td>' + escapeHtml(productName) + '</td>' +
+      '<td>' + escapeHtml(p && p.barcode ? p.barcode : '-') + '</td>' +
       '<td>' + Number(r.quantity||0) + '</td>' +
       '<td>Rs. ' + unitPrice.toLocaleString('en-US',{maximumFractionDigits:0}) + '</td>' +
       '<td><strong>Rs. ' + total.toLocaleString('en-US',{maximumFractionDigits:0}) + '</strong></td>' +
@@ -3200,8 +3204,8 @@ async function exportSalesPdf() {
   doc.text('Transactions: ' + rows.length, 150, y);
   y += 8;
 
-  const widths = [38,78,16,31,31,42];
-  const heads = ['Date / Time','Product','Qty','Unit Price','Total','Staff'];
+  const widths = [36,64,35,14,28,28,38];
+  const heads = ['Date / Time','Product','Barcode','Qty','Unit Price','Total','Staff'];
   const x0 = 14;
 
   function header() {
@@ -3224,6 +3228,7 @@ async function exportSalesPdf() {
     const cells = [
       new Date(r.created_at).toLocaleString(),
       name,
+      p && p.barcode ? String(p.barcode) : '-',
       String(Number(r.quantity||0)),
       'Rs. '+price.toLocaleString('en-US',{maximumFractionDigits:0}),
       'Rs. '+total.toLocaleString('en-US',{maximumFractionDigits:0}),
