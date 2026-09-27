@@ -709,15 +709,6 @@
       <button id="addProductButton" class="add-product-button" type="button">
         + ADD PRODUCT
       </button>
-      <button id="scanBarcodeButton" class="scan-barcode-button" type="button">
-        📷 SCAN BARCODE
-      </button>
-      <button id="enterBarcodeButton" class="scan-barcode-button" type="button">
-        ⌨️ ENTER BARCODE
-      </button>
-      <button id="uploadBarcodeButton" class="scan-barcode-button" type="button">
-        🖼️ UPLOAD BARCODE
-      </button>
       <input id="barcodeImageInput" type="file" accept="image/*" style="display:none">
     </div>
 
@@ -834,6 +825,18 @@
 
       </div>
 
+
+      <div class="field">
+        <label>Barcode Verification</label>
+        <button id="updateScanBarcodeButton" class="scan-barcode-button" type="button" style="width:100%;padding:11px;margin-bottom:8px;">
+          📷 SCAN PRODUCT BARCODE
+        </button>
+        <div style="display:flex;gap:8px;">
+          <button id="updateEnterBarcodeButton" class="cancel-button" type="button" style="margin-top:0;">⌨️ Enter Barcode</button>
+          <button id="updateUploadBarcodeButton" class="cancel-button" type="button" style="margin-top:0;">🖼️ Upload Image</button>
+        </div>
+        <div id="updateBarcodeStatus" class="scanner-status">Verify the product barcode before saving the transaction.</div>
+      </div>
 
       <div class="field">
 
@@ -971,6 +974,8 @@ let selectedProduct = null;
 
 let currentUser = null;
 
+let updateBarcodeVerified = false;
+
 
 
 /* ==================================================
@@ -1054,17 +1059,17 @@ const saveProductButton =
 const cancelProductButton =
   document.getElementById('cancelProductButton');
 
-const scanBarcodeButton =
-  document.getElementById('scanBarcodeButton');
-
 const scanForNewProductButton =
   document.getElementById('scanForNewProductButton');
 
-const enterBarcodeButton =
-  document.getElementById('enterBarcodeButton');
+const updateScanBarcodeButton =
+  document.getElementById('updateScanBarcodeButton');
 
-const uploadBarcodeButton =
-  document.getElementById('uploadBarcodeButton');
+const updateEnterBarcodeButton =
+  document.getElementById('updateEnterBarcodeButton');
+
+const updateUploadBarcodeButton =
+  document.getElementById('updateUploadBarcodeButton');
 
 const barcodeImageInput =
   document.getElementById('barcodeImageInput');
@@ -1874,6 +1879,14 @@ function openModal(productId) {
     selectedProduct.current_stock;
 
 
+  updateBarcodeVerified = false;
+  const updateBarcodeStatus = document.getElementById('updateBarcodeStatus');
+  if (selectedProduct.barcode) {
+    updateBarcodeStatus.textContent = 'Scan, enter, or upload this product barcode to verify it.';
+  } else {
+    updateBarcodeStatus.textContent = 'No barcode is registered for this product yet.';
+  }
+
   document.getElementById(
     'transactionType'
   ).value =
@@ -1916,6 +1929,61 @@ function closeModal() {
 
 
 /* ==================================================
+   UPDATE BARCODE VERIFICATION
+================================================== */
+
+function verifyUpdateBarcode(rawBarcode) {
+  if (!selectedProduct) return;
+
+  const scanned = String(rawBarcode || '').trim();
+  const expected = String(selectedProduct.barcode || '').trim();
+  const status = document.getElementById('updateBarcodeStatus');
+
+  if (!expected) {
+    status.textContent = 'This product has no registered barcode. Add/register its barcode first.';
+    alert('No barcode is registered for this product yet.');
+    return;
+  }
+
+  if (scanned === expected) {
+    updateBarcodeVerified = true;
+    status.textContent = '✓ Barcode verified: ' + scanned;
+    return;
+  }
+
+  updateBarcodeVerified = false;
+  status.textContent = '✗ Barcode does not match this product.';
+  alert('Wrong product barcode. Please scan the barcode for ' + selectedProduct.product_name + '.');
+}
+
+function enterUpdateBarcode() {
+  const value = prompt('Enter or paste the barcode for this product:');
+  if (value !== null) verifyUpdateBarcode(value);
+}
+
+async function readUpdateBarcodeImage(file) {
+  if (!file) return;
+  try {
+    const tempId = 'update-barcode-reader-' + Date.now();
+    const temp = document.createElement('div');
+    temp.id = tempId;
+    temp.style.display = 'none';
+    document.body.appendChild(temp);
+    const reader = new Html5Qrcode(tempId);
+    const decoded = await reader.scanFile(file, true);
+    try { reader.clear(); } catch (e) {}
+    temp.remove();
+    verifyUpdateBarcode(decoded);
+  } catch (error) {
+    console.error(error);
+    alert('Barcode could not be read from the image.');
+  } finally {
+    barcodeImageInput.value = '';
+  }
+}
+
+
+/* ==================================================
    SAVE TRANSACTION
 ================================================== */
 
@@ -1927,6 +1995,11 @@ async function saveTransaction() {
 
   }
 
+
+  if (selectedProduct.barcode && !updateBarcodeVerified) {
+    alert('Please verify the product barcode before saving this stock transaction.');
+    return;
+  }
 
   const type =
     document.getElementById(
@@ -2206,6 +2279,12 @@ async function handleBarcode(rawBarcode) {
     return;
   }
 
+  if (scannerTarget === 'update') {
+    modal.style.display = 'flex';
+    verifyUpdateBarcode(barcode);
+    return;
+  }
+
   const product = products.find(
     item => String(item.barcode || '').trim() === barcode
   );
@@ -2397,26 +2476,38 @@ addProductButton.addEventListener(
   openAddProductModal
 );
 
-scanBarcodeButton.addEventListener(
+updateScanBarcodeButton.addEventListener(
   'click',
-  function() { startBarcodeScanner('lookup'); }
+  function() {
+    modal.style.display = 'none';
+    startBarcodeScanner('update');
+  }
 );
 
-enterBarcodeButton.addEventListener(
+updateEnterBarcodeButton.addEventListener(
   'click',
-  enterBarcodeManually
+  enterUpdateBarcode
 );
 
-uploadBarcodeButton.addEventListener(
+updateUploadBarcodeButton.addEventListener(
   'click',
-  function() { barcodeImageInput.click(); }
+  function() {
+    barcodeImageInput.dataset.mode = 'update';
+    barcodeImageInput.click();
+  }
 );
 
 barcodeImageInput.addEventListener(
   'change',
   function(event) {
     const file = event.target.files && event.target.files[0];
-    if (file) readBarcodeImage(file);
+    if (!file) return;
+    if (barcodeImageInput.dataset.mode === 'update') {
+      readUpdateBarcodeImage(file);
+    } else {
+      readBarcodeImage(file);
+    }
+    delete barcodeImageInput.dataset.mode;
   }
 );
 
