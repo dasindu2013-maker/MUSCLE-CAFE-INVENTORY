@@ -3133,7 +3133,7 @@ function salesRangeLabel(range) {
   return 'All Sales';
 }
 
-function exportSalesPdf() {
+async function exportSalesPdf() {
   const rows = Object.values(window.salesRowsById || {});
   if (!rows.length) {
     alert('There are no sales results to export for this period.');
@@ -3151,19 +3151,26 @@ function exportSalesPdf() {
 
   let y = 16;
 
-  // Add Muscle Cafe logo to the PDF header.
+  // Add Muscle Cafe logo to the PDF header. Load it explicitly so the
+  // PDF export does not depend on whether a page image has finished loading.
   try {
-    const logo = document.querySelector('img[src="logo.png"]');
-    if (logo && logo.complete && logo.naturalWidth) {
-      const canvas = document.createElement('canvas');
-      const size = 300;
-      canvas.width = size;
-      canvas.height = size;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(logo, 0, 0, size, size);
-      const logoData = canvas.toDataURL('image/png');
-      doc.addImage(logoData, 'PNG', 14, 8, 24, 24);
-    }
+    const logoData = await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = function() {
+        try {
+          const canvas = document.createElement('canvas');
+          const max = 500;
+          canvas.width = max;
+          canvas.height = Math.max(1, Math.round(max * img.naturalHeight / img.naturalWidth));
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/png'));
+        } catch (err) { reject(err); }
+      };
+      img.onerror = reject;
+      img.src = 'logo.png?v=pdf-logo-2';
+    });
+    doc.addImage(logoData, 'PNG', 14, 8, 24, 24);
   } catch (e) {
     console.warn('PDF logo could not be added:', e);
   }
