@@ -284,6 +284,59 @@
       margin-top: 4px;
     }
 
+    .view-tabs {
+      display:flex;
+      gap:8px;
+      margin: 4px 0 18px;
+    }
+    .view-tab {
+      border:0;
+      border-radius:9px;
+      padding:11px 16px;
+      font-weight:bold;
+      cursor:pointer;
+      background:#e5e7eb;
+      color:#111827;
+    }
+    .view-tab.active {
+      background:#111827;
+      color:white;
+    }
+    #salesView { display:none; }
+    .sales-filters {
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:8px;
+      margin-bottom:12px;
+    }
+    .sales-summary {
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:10px;
+      margin-bottom:16px;
+    }
+    .sales-card {
+      background:white;
+      border-radius:12px;
+      padding:18px 12px;
+      text-align:center;
+      box-shadow:0 2px 8px rgba(0,0,0,.06);
+    }
+    .sales-card strong { display:block; font-size:24px; }
+    .sales-table-wrap {
+      background:white;
+      border-radius:12px;
+      overflow:auto;
+      box-shadow:0 2px 8px rgba(0,0,0,.06);
+    }
+    .sales-table { width:100%; border-collapse:collapse; min-width:650px; }
+    .sales-table th,.sales-table td {
+      padding:11px 12px;
+      border-bottom:1px solid #e5e7eb;
+      text-align:left;
+      font-size:13px;
+    }
+    .sales-table th { background:#1f2937;color:white; }
     .search-box {
       margin-bottom: 18px;
     }
@@ -519,6 +572,8 @@
         font-size: 11px;
       }
 
+      .sales-filters { grid-template-columns:1fr 1fr; }
+      .sales-summary { grid-template-columns:1fr; }
       .product-row {
         grid-template-columns:
           minmax(0, 1fr) 48px 145px;
@@ -719,6 +774,13 @@
     </section>
 
 
+    <div class="view-tabs">
+      <button id="inventoryTab" class="view-tab active" type="button">Inventory</button>
+      <button id="salesTab" class="view-tab" type="button">📊 Sales Results</button>
+    </div>
+
+    <div id="inventoryView">
+
     <!-- ADD PRODUCT -->
 
     <div class="inventory-actions">
@@ -749,6 +811,24 @@
         Loading inventory...
       </div>
 
+    </div>
+    </div>
+
+    <div id="salesView">
+      <div class="sales-filters">
+        <button class="view-tab sales-range active" data-range="today" type="button">Today</button>
+        <button class="view-tab sales-range" data-range="week" type="button">This Week</button>
+        <button class="view-tab sales-range" data-range="month" type="button">This Month</button>
+        <button class="view-tab sales-range" data-range="all" type="button">All Sales</button>
+      </div>
+
+      <div class="sales-summary">
+        <div class="sales-card"><strong id="salesValue">Rs. 0</strong><span>Sales Value</span></div>
+        <div class="sales-card"><strong id="salesUnits">0</strong><span>Units Sold</span></div>
+        <div class="sales-card"><strong id="salesCount">0</strong><span>Sale Transactions</span></div>
+      </div>
+
+      <div id="salesResults"><div class="loading">Choose a period to view sales.</div></div>
     </div>
 
   </main>
@@ -991,6 +1071,7 @@ let selectedProduct = null;
 let currentUser = null;
 
 let updateBarcodeVerified = false;
+let salesRange = 'today';
 
 
 
@@ -1042,6 +1123,12 @@ const inventory =
   document.getElementById(
     'inventory'
   );
+
+const inventoryTab = document.getElementById('inventoryTab');
+const salesTab = document.getElementById('salesTab');
+const inventoryView = document.getElementById('inventoryView');
+const salesView = document.getElementById('salesView');
+const salesResults = document.getElementById('salesResults');
 
 const searchInput =
   document.getElementById(
@@ -2476,6 +2563,113 @@ async function saveNewProduct() {
 
 
 /* ==================================================
+   SALES RESULTS
+================================================== */
+
+function salesStartDate(range) {
+  const now = new Date();
+  const start = new Date(now);
+
+  if (range === 'today') {
+    start.setHours(0,0,0,0);
+  } else if (range === 'week') {
+    const day = start.getDay();
+    const diff = day === 0 ? 6 : day - 1;
+    start.setDate(start.getDate() - diff);
+    start.setHours(0,0,0,0);
+  } else if (range === 'month') {
+    start.setDate(1);
+    start.setHours(0,0,0,0);
+  } else {
+    return null;
+  }
+  return start;
+}
+
+async function loadSales(range = salesRange) {
+  salesRange = range;
+  salesResults.innerHTML = '<div class="loading">Loading sales...</div>';
+
+  document.querySelectorAll('.sales-range').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.range === range);
+  });
+
+  let query = db
+    .from('transactions')
+    .select('id,product_id,transaction_type,quantity,unit_price,total,note,staff_name,created_at')
+    .eq('transaction_type','SALE')
+    .order('created_at',{ascending:false});
+
+  const start = salesStartDate(range);
+  if (start) query = query.gte('created_at', start.toISOString());
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('Sales error:', error);
+    salesResults.innerHTML = '<div class="error-message">Unable to load sales.<br>' + escapeHtml(error.message) + '</div>';
+    return;
+  }
+
+  const rows = data || [];
+  const totalValue = rows.reduce((s,r) => s + Number(r.total || (Number(r.unit_price||0)*Number(r.quantity||0))),0);
+  const totalUnits = rows.reduce((s,r) => s + Number(r.quantity||0),0);
+
+  document.getElementById('salesValue').textContent =
+    'Rs. ' + totalValue.toLocaleString('en-US',{maximumFractionDigits:0});
+  document.getElementById('salesUnits').textContent = totalUnits;
+  document.getElementById('salesCount').textContent = rows.length;
+
+  if (!rows.length) {
+    salesResults.innerHTML = '<div class="empty">No sales recorded for this period.</div>';
+    return;
+  }
+
+  const productMap = {};
+  products.forEach(p => { productMap[String(p.id)] = p; });
+
+  let html = '<div class="sales-table-wrap"><table class="sales-table"><thead><tr>' +
+    '<th>Date / Time</th><th>Product</th><th>Qty</th><th>Unit Price</th><th>Total</th><th>Staff</th>' +
+    '</tr></thead><tbody>';
+
+  rows.forEach(r => {
+    const p = productMap[String(r.product_id)];
+    const productName = p
+      ? p.product_name + (p.flavour ? ' - ' + p.flavour : '')
+      : 'Product #' + r.product_id;
+    const unitPrice = Number(r.unit_price || 0);
+    const total = Number(r.total || unitPrice * Number(r.quantity||0));
+    html += '<tr>' +
+      '<td>' + escapeHtml(new Date(r.created_at).toLocaleString()) + '</td>' +
+      '<td>' + escapeHtml(productName) + '</td>' +
+      '<td>' + Number(r.quantity||0) + '</td>' +
+      '<td>Rs. ' + unitPrice.toLocaleString('en-US',{maximumFractionDigits:0}) + '</td>' +
+      '<td><strong>Rs. ' + total.toLocaleString('en-US',{maximumFractionDigits:0}) + '</strong></td>' +
+      '<td>' + escapeHtml(r.staff_name || '-') + '</td>' +
+      '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+  salesResults.innerHTML = html;
+}
+
+function showInventoryView() {
+  inventoryView.style.display = 'block';
+  salesView.style.display = 'none';
+  inventoryTab.classList.add('active');
+  salesTab.classList.remove('active');
+}
+
+async function showSalesView() {
+  inventoryView.style.display = 'none';
+  salesView.style.display = 'block';
+  inventoryTab.classList.remove('active');
+  salesTab.classList.add('active');
+  await loadSales(salesRange);
+}
+
+
+/* ==================================================
    ESCAPE HTML
 ================================================== */
 
@@ -2512,6 +2706,12 @@ function escapeHtml(value) {
 /* ==================================================
    EVENT LISTENERS
 ================================================== */
+
+inventoryTab.addEventListener('click', showInventoryView);
+salesTab.addEventListener('click', showSalesView);
+document.querySelectorAll('.sales-range').forEach(btn => {
+  btn.addEventListener('click', function() { loadSales(this.dataset.range); });
+});
 
 loginButton.addEventListener(
   'click',
