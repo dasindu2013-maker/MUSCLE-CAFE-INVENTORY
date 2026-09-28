@@ -1941,29 +1941,59 @@ async function removeProduct(product) {
   const confirmed = confirm(
     'REMOVE PRODUCT?\n\n' +
     label +
-    '\n\nThis will remove the product from the inventory list. This action cannot be undone.'
+    '\n\nThis will remove the product from the inventory list.'
   );
-
   if (!confirmed) return;
 
-  const typed = prompt(
-    'For safety, type REMOVE to confirm deletion of:\n' + label
+  const password = prompt(
+    'Enter administrator password to remove:\n' + label
   );
+  if (password === null) return;
 
-  if (typed !== 'REMOVE') {
-    if (typed !== null) alert('Product was not removed.');
+  if (password !== 'Randy@2026') {
+    alert('Incorrect password. Product was not removed.');
     return;
   }
 
   try {
-    const { error } = await db.rpc(
-      'delete_inventory_product',
-      { p_product_id: product.id }
-    );
+    // Delete dependent transaction history first, then the product.
+    // This fixes products that cannot be deleted because transactions reference them.
+    const { error: txError } = await db
+      .from('transactions')
+      .delete()
+      .eq('product_id', product.id);
 
-    if (error) {
-      console.error('Remove product error:', error);
-      alert('Unable to remove product:\n' + error.message);
+    if (txError) {
+      console.error('Remove transaction history error:', txError);
+      alert('Unable to remove product because its transaction history could not be deleted:\n' + txError.message);
+      return;
+    }
+
+    const { error: productError } = await db
+      .from('products')
+      .delete()
+      .eq('id', product.id);
+
+    if (productError) {
+      console.error('Remove product error:', productError);
+      alert('Unable to remove product:\n' + productError.message);
+      return;
+    }
+
+    // Verify it is really gone before reporting success.
+    const { data: check, error: checkError } = await db
+      .from('products')
+      .select('id')
+      .eq('id', product.id);
+
+    if (checkError) {
+      console.error('Delete verification error:', checkError);
+      alert('The delete request was sent, but the system could not verify it. Please refresh and check.');
+      return;
+    }
+
+    if (check && check.length) {
+      alert('Product was not removed. Database delete permission is blocking the deletion.');
       return;
     }
 
@@ -1972,10 +2002,9 @@ async function removeProduct(product) {
   }
   catch (error) {
     console.error('Unexpected remove error:', error);
-    alert('Unable to remove product.');
+    alert('Unable to remove product: ' + (error.message || error));
   }
 }
-
 
 /* ==================================================
    DASHBOARD
