@@ -805,6 +805,7 @@
         🛒 NEW SALE
       </button>
       <input id="barcodeImageInput" type="file" accept="image/*" style="display:none">
+      <input id="barcodeCameraCaptureInput" type="file" accept="image/*" capture="environment" style="display:none">
     </div>
 
     <!-- SEARCH -->
@@ -867,7 +868,8 @@
       <div class="field">
         <label>Barcode</label>
         <input id="newBarcode" type="text" inputmode="numeric" placeholder="Scan or enter barcode">
-        <button id="scanForNewProductButton" class="cancel-button" type="button">📷 Scan Barcode</button>
+        <button id="scanForNewProductButton" class="cancel-button" type="button">📷 Live Scan Barcode</button>
+        <button id="photoForNewProductButton" class="scan-barcode-button" type="button" style="width:100%;margin-top:8px;">📸 TAKE PHOTO & READ BARCODE</button>
       </div>
 
       <div class="field">
@@ -918,8 +920,9 @@
       <div class="field">
         <label>Barcode</label>
         <button id="saleScanBarcodeButton" class="scan-barcode-button" type="button" style="width:100%;padding:11px;">
-          📷 SCAN BARCODE & ADD TO CART
+          📷 LIVE SCAN BARCODE & ADD TO CART
         </button>
+        <button id="salePhotoBarcodeButton" class="scan-barcode-button" type="button" style="width:100%;padding:11px;margin-top:8px;">📸 TAKE PHOTO & READ BARCODE</button>
         <div style="display:flex;gap:8px;margin-top:8px;">
           <button id="saleUploadBarcodeButton" class="cancel-button" type="button" style="margin-top:0;">🖼️ Upload Barcode Image</button>
         </div>
@@ -1016,8 +1019,9 @@
       <div class="field">
         <label>Barcode Verification</label>
         <button id="updateScanBarcodeButton" class="scan-barcode-button" type="button" style="width:100%;padding:11px;margin-bottom:8px;">
-          📷 SCAN PRODUCT BARCODE
+          📷 LIVE SCAN PRODUCT BARCODE
         </button>
+        <button id="updatePhotoBarcodeButton" class="scan-barcode-button" type="button" style="width:100%;padding:11px;margin-bottom:8px;">📸 TAKE PHOTO & READ BARCODE</button>
         <div style="display:flex;gap:8px;">
           <button id="updateUploadBarcodeButton" class="cancel-button" type="button" style="margin-top:0;">🖼️ Upload Barcode Image</button>
         </div>
@@ -2927,6 +2931,53 @@ async function stopBarcodeScanner() {
   scannerModal.style.display = 'none';
 }
 
+async function readCapturedBarcodePhoto(file, target) {
+  if (!file) return;
+  try {
+    if (!window.Html5Qrcode) throw new Error('Barcode reader library did not load.');
+
+    const tempId = 'captured-barcode-reader-' + Date.now();
+    const temp = document.createElement('div');
+    temp.id = tempId;
+    temp.style.display = 'none';
+    document.body.appendChild(temp);
+
+    const reader = new Html5Qrcode(tempId);
+    const decoded = await reader.scanFile(file, true);
+    try { reader.clear(); } catch(e) {}
+    temp.remove();
+
+    // Reuse the same editable review UI used by live camera detection.
+    pendingScannedBarcode = '';
+    pendingScannerTarget = target;
+    scannerTarget = target;
+    scannerModal.style.display = 'flex';
+    document.getElementById('barcodeReader').innerHTML = '';
+    document.getElementById('scannerStatus').textContent =
+      'Barcode read from photo. Check the detected number below and correct it if necessary.';
+    const input = document.getElementById('scannerDetectedBarcode');
+    input.value = String(decoded || '').trim().replace(/\\s+/g, '');
+    document.getElementById('scannerConfirmBox').style.display = 'block';
+    input.focus();
+    input.select();
+  } catch(error) {
+    console.error('Captured barcode photo error:', error);
+    alert('The barcode could not be read from that photo. Retake the photo with the full barcode sharp, straight and without glare.');
+    if (target === 'new-product') addProductModal.style.display = 'flex';
+    if (target === 'sale-cart') newSaleModal.style.display = 'flex';
+    if (target === 'update') modal.style.display = 'flex';
+  } finally {
+    barcodeCameraCaptureInput.value = '';
+  }
+}
+
+function takeBarcodePhoto(target) {
+  scannerTarget = target;
+  barcodeCameraCaptureInput.dataset.mode = target;
+  barcodeCameraCaptureInput.value = '';
+  barcodeCameraCaptureInput.click();
+}
+
 async function readBarcodeImage(file) {
   if (!file) return;
 
@@ -3537,6 +3588,27 @@ barcodeImageInput.addEventListener(
     delete barcodeImageInput.dataset.mode;
   }
 );
+
+photoForNewProductButton.addEventListener('click', function() {
+  addProductModal.style.display = 'none';
+  takeBarcodePhoto('new-product');
+});
+
+salePhotoBarcodeButton.addEventListener('click', function() {
+  newSaleModal.style.display = 'none';
+  takeBarcodePhoto('sale-cart');
+});
+
+updatePhotoBarcodeButton.addEventListener('click', function() {
+  modal.style.display = 'none';
+  takeBarcodePhoto('update');
+});
+
+barcodeCameraCaptureInput.addEventListener('change', function(event) {
+  const file = event.target.files && event.target.files[0];
+  const target = barcodeCameraCaptureInput.dataset.mode || 'new-product';
+  if (file) readCapturedBarcodePhoto(file, target);
+});
 
 scanForNewProductButton.addEventListener(
   'click',
