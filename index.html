@@ -971,8 +971,9 @@
   <div id="scannerModal">
     <div class="modal-box">
       <h2>Scan Product Barcode</h2>
-      <div class="scanner-status" id="scannerStatus">Point your phone camera at the product barcode.</div>
+      <div class="scanner-status" id="scannerStatus">Hold the barcode inside the box. Keep the full barcode visible, steady and glare-free. Try moving the camera slightly farther away if it does not focus.</div>
       <div id="barcodeReader"></div>
+      <button id="scannerManualBarcodeButton" class="cancel-button" type="button">⌨️ ENTER BARCODE NUMBER</button>
       <button id="closeScannerButton" class="cancel-button" type="button">Cancel</button>
     </div>
   </div>
@@ -2761,21 +2762,35 @@ async function startBarcodeScanner(target = 'lookup') {
     html5QrCode = new Html5Qrcode('barcodeReader');
 
     const config = {
-      fps: 10,
-      qrbox: { width: 280, height: 140 },
+      fps: 15,
+      qrbox: function(viewfinderWidth, viewfinderHeight) {
+        const width = Math.floor(Math.min(viewfinderWidth * 0.92, 420));
+        const height = Math.floor(Math.min(viewfinderHeight * 0.52, 210));
+        return { width: Math.max(width, 220), height: Math.max(height, 110) };
+      },
       aspectRatio: 1.777778,
+      disableFlip: false,
       formatsToSupport: [
         Html5QrcodeSupportedFormats.EAN_13,
         Html5QrcodeSupportedFormats.EAN_8,
         Html5QrcodeSupportedFormats.UPC_A,
         Html5QrcodeSupportedFormats.UPC_E,
         Html5QrcodeSupportedFormats.CODE_128,
-        Html5QrcodeSupportedFormats.CODE_39
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.CODE_93,
+        Html5QrcodeSupportedFormats.ITF,
+        Html5QrcodeSupportedFormats.CODABAR,
+        Html5QrcodeSupportedFormats.DATA_MATRIX,
+        Html5QrcodeSupportedFormats.QR_CODE
       ]
     };
 
+    const cameraConfig = {
+      facingMode: { ideal: 'environment' }
+    };
+
     await html5QrCode.start(
-      { facingMode: 'environment' },
+      cameraConfig,
       config,
       async function(decodedText) {
         await handleBarcode(decodedText);
@@ -2786,7 +2801,7 @@ async function startBarcodeScanner(target = 'lookup') {
   catch (error) {
     console.error('Scanner error:', error);
     document.getElementById('scannerStatus').textContent =
-      'Unable to start camera. Please allow camera permission and try again.';
+      'Unable to start the rear camera. Check camera permission, close other apps using the camera, then try again. You can also enter or upload the barcode.';
   }
 }
 
@@ -3429,6 +3444,16 @@ scanForNewProductButton.addEventListener(
     startBarcodeScanner('new-product');
   }
 );
+
+document.getElementById('scannerManualBarcodeButton').addEventListener('click', async function() {
+  const target = scannerTarget;
+  await stopBarcodeScanner();
+  const value = prompt('Enter the number printed below the barcode:');
+  if (value === null || !String(value).trim()) return;
+  const barcode = String(value).trim().replace(/\s+/g, '');
+  scannerTarget = target;
+  await handleBarcode(barcode);
+});
 
 closeScannerButton.addEventListener(
   'click',
