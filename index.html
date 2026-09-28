@@ -2764,57 +2764,96 @@ async function startBarcodeScanner(target = 'lookup') {
   const confirmBox = document.getElementById('scannerConfirmBox');
   if (confirmBox) confirmBox.style.display = 'none';
   scannerModal.style.display = 'flex';
-  document.getElementById('scannerStatus').textContent =
-    'CAMERA IS READING: Hold the black barcode bars fully inside the box. When detected, the camera will stop automatically and show the number for you to check/edit.';
+
+  const status = document.getElementById('scannerStatus');
+  status.textContent =
+    'Starting camera… Hold the black barcode bars fully inside the box.';
 
   try {
     if (!window.Html5Qrcode) {
       throw new Error('Barcode scanner library did not load.');
     }
 
+    // Clean up any previous scanner instance before starting a new one.
+    if (html5QrCode) {
+      try {
+        if (html5QrCode.isScanning) await html5QrCode.stop();
+        html5QrCode.clear();
+      } catch (e) {}
+      html5QrCode = null;
+    }
+    document.getElementById('barcodeReader').innerHTML = '';
     html5QrCode = new Html5Qrcode('barcodeReader');
 
+    // iOS Safari is more reliable when we first enumerate cameras and use
+    // the exact rear-camera device id rather than an ideal facingMode object.
+    let cameraId = null;
+    try {
+      const cameras = await Html5Qrcode.getCameras();
+      if (cameras && cameras.length) {
+        const rear = cameras.find(cam =>
+          /back|rear|environment/i.test(String(cam.label || ''))
+        );
+        cameraId = (rear || cameras[cameras.length - 1]).id;
+      }
+    } catch (cameraListError) {
+      console.warn('Camera enumeration failed:', cameraListError);
+    }
+
     const config = {
-      fps: 15,
+      fps: 10,
       qrbox: function(viewfinderWidth, viewfinderHeight) {
-        const width = Math.floor(Math.min(viewfinderWidth * 0.92, 420));
-        const height = Math.floor(Math.min(viewfinderHeight * 0.52, 210));
-        return { width: Math.max(width, 220), height: Math.max(height, 110) };
+        const width = Math.floor(Math.min(viewfinderWidth * 0.9, 380));
+        const height = Math.floor(Math.min(viewfinderHeight * 0.45, 180));
+        return {
+          width: Math.max(200, Math.min(width, viewfinderWidth - 20)),
+          height: Math.max(100, Math.min(height, viewfinderHeight - 20))
+        };
       },
-      aspectRatio: 1.777778,
-      disableFlip: false,
-      formatsToSupport: [
-        Html5QrcodeSupportedFormats.EAN_13,
-        Html5QrcodeSupportedFormats.EAN_8,
-        Html5QrcodeSupportedFormats.UPC_A,
-        Html5QrcodeSupportedFormats.UPC_E,
-        Html5QrcodeSupportedFormats.CODE_128,
-        Html5QrcodeSupportedFormats.CODE_39,
-        Html5QrcodeSupportedFormats.CODE_93,
-        Html5QrcodeSupportedFormats.ITF,
-        Html5QrcodeSupportedFormats.CODABAR,
-        Html5QrcodeSupportedFormats.DATA_MATRIX,
-        Html5QrcodeSupportedFormats.QR_CODE
-      ]
+      disableFlip: false
     };
 
-    const cameraConfig = {
-      facingMode: { ideal: 'environment' }
+    const onSuccess = async function(decodedText) {
+      await showScannedBarcodeForConfirmation(decodedText);
     };
 
-    await html5QrCode.start(
-      cameraConfig,
-      config,
-      async function(decodedText) {
-        await showScannedBarcodeForConfirmation(decodedText);
-      },
-      function() {}
-    );
+    // Prefer exact camera id on iPhone; fall back to simple environment mode.
+    try {
+      await html5QrCode.start(
+        cameraId || { facingMode: 'environment' },
+        config,
+        onSuccess,
+        function() {}
+      );
+    } catch (firstError) {
+      console.warn('Preferred camera start failed:', firstError);
+      try {
+        if (html5QrCode) {
+          try { html5QrCode.clear(); } catch (e) {}
+        }
+        document.getElementById('barcodeReader').innerHTML = '';
+        html5QrCode = new Html5Qrcode('barcodeReader');
+        await html5QrCode.start(
+          { facingMode: 'environment' },
+          { fps: 10 },
+          onSuccess,
+          function() {}
+        );
+      } catch (fallbackError) {
+        throw fallbackError;
+      }
+    }
+
+    status.textContent =
+      'CAMERA IS READING: Point at the black barcode bars. Detection is automatic.';
   }
   catch (error) {
     console.error('Scanner error:', error);
-    document.getElementById('scannerStatus').textContent =
-      'Unable to start the rear camera. Check camera permission, close other apps using the camera, then try again. You can also enter or upload the barcode.';
+    const detail = error && error.message ? error.message : String(error || 'Unknown camera error');
+    status.innerHTML =
+      '<strong>Camera could not start.</strong><br>' +
+      '<span style="font-size:12px;">' + escapeHtml(detail) + '</span><br>' +
+      '<span style="font-size:12px;">Make sure Safari has Camera permission, then close this window and try again.</span>';
   }
 }
 
