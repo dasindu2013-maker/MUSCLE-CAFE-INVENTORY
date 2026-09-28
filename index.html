@@ -3,6 +3,9 @@
 
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
 
   <meta
     name="viewport"
@@ -918,8 +921,7 @@
           📷 SCAN BARCODE & ADD TO CART
         </button>
         <div style="display:flex;gap:8px;margin-top:8px;">
-          <button id="saleEnterBarcodeButton" class="cancel-button" type="button" style="margin-top:0;">⌨️ Enter Barcode</button>
-          <button id="saleUploadBarcodeButton" class="cancel-button" type="button" style="margin-top:0;">🖼️ Upload Barcode</button>
+          <button id="saleUploadBarcodeButton" class="cancel-button" type="button" style="margin-top:0;">🖼️ Upload Barcode Image</button>
         </div>
         <div id="saleBarcodeStatus" class="scanner-status">Scan the next product to add it to this sale.</div>
       </div>
@@ -970,7 +972,8 @@
   =================================== -->
   <div id="scannerModal">
     <div class="modal-box">
-      <h2>Scan Product Barcode</h2>
+      <h2>📷 Camera Barcode Scanner</h2>
+      <div style="font-size:11px;color:#9ca3af;margin-bottom:6px;">Scanner v4 — camera detection + review</div>
       <div class="scanner-status" id="scannerStatus">Hold the barcode inside the box. Keep the full barcode visible, steady and glare-free. Try moving the camera slightly farther away if it does not focus.</div>
       <div id="barcodeReader"></div>
       <div id="scannerConfirmBox" style="display:none;margin-top:12px;padding:14px;background:#f3f4f6;border-radius:10px;">
@@ -1016,8 +1019,7 @@
           📷 SCAN PRODUCT BARCODE
         </button>
         <div style="display:flex;gap:8px;">
-          <button id="updateEnterBarcodeButton" class="cancel-button" type="button" style="margin-top:0;">⌨️ Enter Barcode</button>
-          <button id="updateUploadBarcodeButton" class="cancel-button" type="button" style="margin-top:0;">🖼️ Upload Image</button>
+          <button id="updateUploadBarcodeButton" class="cancel-button" type="button" style="margin-top:0;">🖼️ Upload Barcode Image</button>
         </div>
         <div id="updateBarcodeStatus" class="scanner-status">Verify the product barcode before saving the transaction.</div>
       </div>
@@ -1226,7 +1228,6 @@ const saleProductSelect = document.getElementById('saleProductSelect');
 const saleQuantity = document.getElementById('saleQuantity');
 const addToCartButton = document.getElementById('addToCartButton');
 const saleScanBarcodeButton = document.getElementById('saleScanBarcodeButton');
-const saleEnterBarcodeButton = document.getElementById('saleEnterBarcodeButton');
 const saleUploadBarcodeButton = document.getElementById('saleUploadBarcodeButton');
 const saleBarcodeStatus = document.getElementById('saleBarcodeStatus');
 const saleCart = document.getElementById('saleCart');
@@ -2764,7 +2765,7 @@ async function startBarcodeScanner(target = 'lookup') {
   if (confirmBox) confirmBox.style.display = 'none';
   scannerModal.style.display = 'flex';
   document.getElementById('scannerStatus').textContent =
-    'Point your phone camera at the product barcode.';
+    'CAMERA IS READING: Hold the black barcode bars fully inside the box. When detected, the camera will stop automatically and show the number for you to check/edit.';
 
   try {
     if (!window.Html5Qrcode) {
@@ -3391,7 +3392,6 @@ saleScanBarcodeButton.addEventListener('click', function() {
   newSaleModal.style.display = 'none';
   startBarcodeScanner('sale-cart');
 });
-saleEnterBarcodeButton.addEventListener('click', enterSaleBarcode);
 saleUploadBarcodeButton.addEventListener('click', function() {
   barcodeImageInput.dataset.mode = 'sale-cart';
   barcodeImageInput.click();
@@ -3473,11 +3473,6 @@ updateScanBarcodeButton.addEventListener(
     modal.style.display = 'none';
     startBarcodeScanner('update');
   }
-);
-
-updateEnterBarcodeButton.addEventListener(
-  'click',
-  enterUpdateBarcode
 );
 
 updateUploadBarcodeButton.addEventListener(
