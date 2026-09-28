@@ -973,7 +973,13 @@
       <h2>Scan Product Barcode</h2>
       <div class="scanner-status" id="scannerStatus">Hold the barcode inside the box. Keep the full barcode visible, steady and glare-free. Try moving the camera slightly farther away if it does not focus.</div>
       <div id="barcodeReader"></div>
-      <button id="scannerManualBarcodeButton" class="cancel-button" type="button">⌨️ ENTER BARCODE NUMBER</button>
+      <div id="scannerConfirmBox" style="display:none;margin-top:12px;padding:14px;background:#f3f4f6;border-radius:10px;">
+        <div style="font-size:13px;font-weight:bold;margin-bottom:6px;">BARCODE DETECTED</div>
+        <input id="scannerDetectedBarcode" type="text" inputmode="numeric" autocomplete="off" style="font-size:20px;font-weight:bold;letter-spacing:1px;text-align:center;">
+        <div style="font-size:12px;color:#6b7280;margin-top:6px;">Check the detected number against the number printed below the barcode. Correct it here if necessary.</div>
+        <button id="scannerConfirmBarcodeButton" class="save-button" type="button" style="margin-top:10px;">✓ OK — USE THIS BARCODE</button>
+        <button id="scannerRescanBarcodeButton" class="cancel-button" type="button">↻ SCAN AGAIN</button>
+      </div>
       <button id="closeScannerButton" class="cancel-button" type="button">Cancel</button>
     </div>
   </div>
@@ -1289,6 +1295,8 @@ const closeScannerButton =
   document.getElementById('closeScannerButton');
 
 let html5QrCode = null;
+let pendingScannedBarcode = '';
+let pendingScannerTarget = '';
 let scannerTarget = 'lookup';
 
 
@@ -2750,6 +2758,10 @@ async function saveTransaction() {
 
 async function startBarcodeScanner(target = 'lookup') {
   scannerTarget = target;
+  pendingScannedBarcode = '';
+  pendingScannerTarget = '';
+  const confirmBox = document.getElementById('scannerConfirmBox');
+  if (confirmBox) confirmBox.style.display = 'none';
   scannerModal.style.display = 'flex';
   document.getElementById('scannerStatus').textContent =
     'Point your phone camera at the product barcode.';
@@ -2793,7 +2805,7 @@ async function startBarcodeScanner(target = 'lookup') {
       cameraConfig,
       config,
       async function(decodedText) {
-        await handleBarcode(decodedText);
+        await showScannedBarcodeForConfirmation(decodedText);
       },
       function() {}
     );
@@ -2803,6 +2815,61 @@ async function startBarcodeScanner(target = 'lookup') {
     document.getElementById('scannerStatus').textContent =
       'Unable to start the rear camera. Check camera permission, close other apps using the camera, then try again. You can also enter or upload the barcode.';
   }
+}
+
+async function showScannedBarcodeForConfirmation(rawBarcode) {
+  const barcode = String(rawBarcode || '').trim().replace(/\s+/g, '');
+  if (!barcode || pendingScannedBarcode) return;
+
+  pendingScannedBarcode = barcode;
+  pendingScannerTarget = scannerTarget;
+
+  if (navigator.vibrate) navigator.vibrate(120);
+
+  // Stop the live camera but keep the scanner modal open for review.
+  if (html5QrCode) {
+    try {
+      if (html5QrCode.isScanning) await html5QrCode.stop();
+      html5QrCode.clear();
+    } catch (e) {
+      console.warn('Scanner pause error:', e);
+    }
+    html5QrCode = null;
+  }
+
+  document.getElementById('scannerStatus').textContent =
+    'Barcode detected. Check the number below and correct it if necessary.';
+  document.getElementById('barcodeReader').innerHTML = '';
+  const input = document.getElementById('scannerDetectedBarcode');
+  input.value = barcode;
+  document.getElementById('scannerConfirmBox').style.display = 'block';
+  input.focus();
+  input.select();
+}
+
+async function confirmDetectedBarcode() {
+  const barcode = String(document.getElementById('scannerDetectedBarcode').value || '')
+    .trim().replace(/\s+/g, '');
+  if (!barcode) {
+    alert('Please enter a valid barcode number.');
+    return;
+  }
+  const target = pendingScannerTarget || scannerTarget;
+  pendingScannedBarcode = '';
+  pendingScannerTarget = '';
+  document.getElementById('scannerConfirmBox').style.display = 'none';
+  scannerModal.style.display = 'none';
+  scannerTarget = target;
+  await handleBarcode(barcode);
+}
+
+async function rescanDetectedBarcode() {
+  const target = pendingScannerTarget || scannerTarget;
+  pendingScannedBarcode = '';
+  pendingScannerTarget = '';
+  document.getElementById('scannerConfirmBox').style.display = 'none';
+  document.getElementById('scannerDetectedBarcode').value = '';
+  await startBarcodeScanner(target);
 }
 
 async function stopBarcodeScanner() {
@@ -3445,14 +3512,10 @@ scanForNewProductButton.addEventListener(
   }
 );
 
-document.getElementById('scannerManualBarcodeButton').addEventListener('click', async function() {
-  const target = scannerTarget;
-  await stopBarcodeScanner();
-  const value = prompt('Enter the number printed below the barcode:');
-  if (value === null || !String(value).trim()) return;
-  const barcode = String(value).trim().replace(/\s+/g, '');
-  scannerTarget = target;
-  await handleBarcode(barcode);
+document.getElementById('scannerConfirmBarcodeButton').addEventListener('click', confirmDetectedBarcode);
+document.getElementById('scannerRescanBarcodeButton').addEventListener('click', rescanDetectedBarcode);
+document.getElementById('scannerDetectedBarcode').addEventListener('keydown', function(event) {
+  if (event.key === 'Enter') confirmDetectedBarcode();
 });
 
 closeScannerButton.addEventListener(
