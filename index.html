@@ -1956,31 +1956,20 @@ async function removeProduct(product) {
   }
 
   try {
-    // Delete dependent transaction history first, then the product.
-    // This fixes products that cannot be deleted because transactions reference them.
-    const { error: txError } = await db
-      .from('transactions')
-      .delete()
-      .eq('product_id', product.id);
+    // Use the secure database function. Direct browser deletes can be blocked
+    // by Supabase RLS even when the user is logged in.
+    const { error: deleteError } = await db.rpc(
+      'delete_inventory_product',
+      { p_product_id: product.id }
+    );
 
-    if (txError) {
-      console.error('Remove transaction history error:', txError);
-      alert('Unable to remove product because its transaction history could not be deleted:\n' + txError.message);
+    if (deleteError) {
+      console.error('Remove product RPC error:', deleteError);
+      alert('Unable to remove product:\n' + deleteError.message);
       return;
     }
 
-    const { error: productError } = await db
-      .from('products')
-      .delete()
-      .eq('id', product.id);
-
-    if (productError) {
-      console.error('Remove product error:', productError);
-      alert('Unable to remove product:\n' + productError.message);
-      return;
-    }
-
-    // Verify it is really gone before reporting success.
+    // Verify it is gone.
     const { data: check, error: checkError } = await db
       .from('products')
       .select('id')
@@ -1988,12 +1977,12 @@ async function removeProduct(product) {
 
     if (checkError) {
       console.error('Delete verification error:', checkError);
-      alert('The delete request was sent, but the system could not verify it. Please refresh and check.');
+      alert('Delete completed, but verification failed. Refresh the page and check.');
       return;
     }
 
     if (check && check.length) {
-      alert('Product was not removed. Database delete permission is blocking the deletion.');
+      alert('Product is still in the database. Please run the updated delete function in Supabase SQL Editor.');
       return;
     }
 
