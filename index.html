@@ -3573,7 +3573,10 @@ async function exportSalesPdf() {
   rows.forEach(r => {
     if (y > 190) { doc.addPage(); y=14; header(); doc.setFont('helvetica','normal'); }
     const p = productMap[String(r.product_id)];
-    let name = p ? p.product_name + (p.flavour ? ' - '+p.flavour : '') : 'Product #'+r.product_id;
+    let name = p
+      ? p.product_name + (p.flavour ? ' - ' + p.flavour : '')
+      : (r.historical_product_name || ('Product #' + (r.product_id || 'Historical'))) +
+        (r.historical_flavour ? ' - ' + r.historical_flavour : '');
     if (name.length > 42) name = name.slice(0,39)+'...';
     const price = Number(r.unit_price||0);
     const total = Number(r.total || price*Number(r.quantity||0));
