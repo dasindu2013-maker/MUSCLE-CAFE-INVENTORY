@@ -3360,9 +3360,10 @@ function openHistoricalInvoice(transactionId) {
   }
 
   const product = products.find(p => String(p.id) === String(sale.product_id)) || {
-    product_name: 'Product #' + sale.product_id,
-    flavour: '',
-    selling_price: Number(sale.unit_price || 0)
+    product_name: sale.historical_product_name || ('Product #' + (sale.product_id || 'Historical')),
+    flavour: sale.historical_flavour || '',
+    selling_price: Number(sale.unit_price || 0),
+    barcode: ''
   };
 
   const invoiceProduct = {
@@ -3418,7 +3419,7 @@ async function loadSales(range = salesRange) {
 
   let query = db
     .from('transactions')
-    .select('id,product_id,transaction_type,quantity,unit_price,total,note,staff_name,created_at')
+    .select('id,product_id,transaction_type,quantity,unit_price,total,note,staff_name,created_at,historical_product_name,historical_flavour')
     .eq('transaction_type','SALE')
     .order('created_at',{ascending:false});
 
@@ -3461,7 +3462,8 @@ async function loadSales(range = salesRange) {
     const p = productMap[String(r.product_id)];
     const productName = p
       ? p.product_name + (p.flavour ? ' - ' + p.flavour : '')
-      : 'Product #' + r.product_id;
+      : (r.historical_product_name || ('Product #' + (r.product_id || 'Historical'))) +
+        (r.historical_flavour ? ' - ' + r.historical_flavour : '');
     const unitPrice = Number(r.unit_price || 0);
     const total = Number(r.total || unitPrice * Number(r.quantity||0));
     html += '<tr>' +
