@@ -1047,6 +1047,13 @@
 
 
       <div class="field">
+        <label>Product Barcode</label>
+        <input id="updateBarcodeInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Type or paste barcode number">
+        <button id="saveUpdateBarcodeButton" class="save-button" type="button" style="margin-top:8px;">SAVE BARCODE</button>
+        <div id="updateBarcodeSaveStatus" class="scanner-status"></div>
+      </div>
+
+      <div class="field">
         <label>Barcode Verification</label>
         <button id="updateScanBarcodeButton" class="scan-barcode-button" type="button" style="width:100%;padding:11px;margin-bottom:8px;">
           📷 LIVE SCAN PRODUCT BARCODE
@@ -1311,11 +1318,12 @@ const cancelProductButton =
 const scanForNewProductButton =
   document.getElementById('scanForNewProductButton');
 
+const updateBarcodeInput = document.getElementById('updateBarcodeInput');
+const saveUpdateBarcodeButton = document.getElementById('saveUpdateBarcodeButton');
+const updateBarcodeSaveStatus = document.getElementById('updateBarcodeSaveStatus');
+
 const updateScanBarcodeButton =
   document.getElementById('updateScanBarcodeButton');
-
-const updateEnterBarcodeButton =
-  document.getElementById('updateEnterBarcodeButton');
 
 const updateUploadBarcodeButton =
   document.getElementById('updateUploadBarcodeButton');
@@ -2220,6 +2228,10 @@ function openModal(productId) {
 
 
   updateBarcodeVerified = false;
+  updateBarcodeInput.value = selectedProduct.barcode || '';
+  updateBarcodeSaveStatus.textContent = selectedProduct.barcode
+    ? 'Current barcode: ' + selectedProduct.barcode
+    : 'No barcode registered yet.';
   const updateBarcodeStatus = document.getElementById('updateBarcodeStatus');
   if (selectedProduct.barcode) {
     updateBarcodeStatus.textContent = 'Scan, enter, or upload this product barcode to verify it.';
@@ -2565,6 +2577,49 @@ function printInvoice() {
 /* ==================================================
    UPDATE BARCODE VERIFICATION
 ================================================== */
+
+async function saveTypedUpdateBarcode() {
+  if (!selectedProduct) return;
+
+  const barcode = String(updateBarcodeInput.value || '').trim().replace(/\s+/g, '');
+  if (!barcode) {
+    alert('Please type the barcode number.');
+    return;
+  }
+
+  saveUpdateBarcodeButton.disabled = true;
+  saveUpdateBarcodeButton.textContent = 'SAVING...';
+
+  try {
+    const { error } = await db
+      .from('products')
+      .update({ barcode: barcode })
+      .eq('id', selectedProduct.id);
+
+    if (error) {
+      console.error('Barcode update error:', error);
+      alert('Unable to save barcode: ' + error.message);
+      return;
+    }
+
+    selectedProduct.barcode = barcode;
+    updateBarcodeVerified = true;
+    updateBarcodeSaveStatus.textContent = '✓ Barcode saved: ' + barcode;
+    document.getElementById('updateBarcodeStatus').textContent =
+      '✓ Barcode registered and verified: ' + barcode;
+
+    const localProduct = products.find(p => Number(p.id) === Number(selectedProduct.id));
+    if (localProduct) localProduct.barcode = barcode;
+
+    alert('Barcode saved successfully.');
+  } catch (error) {
+    console.error('Barcode update error:', error);
+    alert('Unable to save barcode.');
+  } finally {
+    saveUpdateBarcodeButton.disabled = false;
+    saveUpdateBarcodeButton.textContent = 'SAVE BARCODE';
+  }
+}
 
 function verifyUpdateBarcode(rawBarcode) {
   if (!selectedProduct) return;
@@ -3678,6 +3733,8 @@ addProductButton.addEventListener(
   'click',
   openAddProductModal
 );
+
+saveUpdateBarcodeButton.addEventListener('click', saveTypedUpdateBarcode);
 
 updateScanBarcodeButton.addEventListener(
   'click',
